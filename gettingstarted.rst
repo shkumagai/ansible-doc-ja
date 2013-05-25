@@ -1,13 +1,14 @@
-==========
- 始めよう
-==========
+始めよう
+========
+
+.. イメージ省略
 
 .. contents:: contents:
-   :depth: 1
-
+   :depth: 2
+   :backlinks: top
 
 必要条件
-========
+````````
 
 Ansibleの要件は本当に最小限です。
 
@@ -18,20 +19,23 @@ Python2.5を使っているなら、2.6の追加方法もお見せします。Li
 Python2.6+に加えて、次のPythonモジュールが必要です(pip、またはOSのパッケージ
 マネージャでちょっと違う名前のものをインストールします):
 
-- paramiko
-- PyYAML
-- jinja2
+* ``paramiko``
+* ``PyYAML``
+* ``jinja2``
 
 RHELやCentOS5を使っている場合、デフォルトはPython2.4ですが、Python2.6は
-簡単にインストールできます。 `EPELを使うと`_ これらの依存パッケージは
-次のようにインストールします::
+簡単にインストールできます。
+`EPELを使って <http://fedoraproject.org/wiki/EPEL>`_ これらの依存パッケージを
+次のようにインストールしてください:
+
+.. code-block:: bash
 
     $ yum install python26 python26-PyYAML python26-paramiko python26-jinja2
 
 管理されるノードでは、Python2.4以降だけが必要ですが、Python2.6未満を使って
 いる場合はこれも必要です:
 
-- python-simplejson
+* ``python-simplejson``
 
 .. note::
 
@@ -47,7 +51,7 @@ RHELやCentOS5を使っている場合、デフォルトはPython2.4ですが、
    モジュールは切り替え終わっていません。しかしいくつかのLinuxディストリ
    ビューション (GentooやArch) は、Python2.Xインタプリタがデフォルトで
    インストールされないことがあります。それらのシステムでは自分で
-   インストールして、インベントリの変数 ``'ansible_python_interpreter'`` に
+   インストールして、インベントリの変数 'ansible_python_interpreter' に
    自分のpython2.Xへのポインタの設定が必要です。Redhat Enterprise Linux、
    CentOS、FedoraそしてUbuntu等のディストリビューションはPython2.Xインタプリタが
    デフォルトでインストールされているので、これには該当しません。
@@ -56,10 +60,8 @@ RHELやCentOS5を使っている場合、デフォルトはPython2.4ですが、
    ある場合は、"生"のモジュールを使ってリモートで起動できます。
 
 
-
-
 Ansibelの入手
-=============
+`````````````
 
 最新の機能をすべて使うことに興味があるなら、チェックアウトしたGitの開発ブランチ
 を最新に保ちたいと思うでしょう。これはまたプロジェクトへ貢献し返すのも、最も
@@ -71,39 +73,48 @@ Ansibleのリリースサイクルは１ヶ月程度です。この短いリリ�
 どのようなバグも一般的にはstableブランチへのバックポートを維持するのではなく
 次のリリースで修正されます。
 
-もしあなたがGithubアカウントを持っているなら、Githubのプロジェクトをフォロー
-したいと思うでしょう。ここは我々がバグや機能のアイデアを共有するための
+もしあなたがGithubアカウントを持っているなら、
+`Githubのプロジェクト <https://github.com/ansible/ansible>`_ をフォローするのも
+よいでしょう。ここは我々がバグや機能のアイデアを共有するための
 issueトラッカーを維持する場所でもあります。
 
 
 チェックアウトしたソースから実行する
-------------------------------------
+++++++++++++++++++++++++++++++++++++
 
 チェックアウトしたソースからAnsibleを実行するのは簡単なことで、root権限は
-必要ありません::
+必要ありません:
+
+.. code-block:: bash
 
     $ git clone git://github.com/ansible/ansible.git
     $ cd ./ansible
     $ source ./hacking/env-setup
 
-オプションで ``/etc/ansible/hosts`` 以外のインベントリファイルを指定できます ::
+オプションで /etc/ansible/hosts 以外のインベントリファイルを指定できます:
+
+.. code-block:: bash
 
     $ echo "127.0.0.1" > ~/ansible_hosts
     $ export ANSIBLE_HOSTS=~/ansible_hosts
 
 インベントリファイルについては、マニュアルの後の部分で読むことができます。
 
-さぁ、試してみましょう ::
+さぁ、試してみましょう:
+
+.. code-block:: bash
 
     $ ansible all -m ping --ask-pass
 
 
 Make install
-------------
+++++++++++++
 
 まだAnsibleがパッケージ化されていないディストリビューションで作業する場合に、
-``make install`` を使ってAnsibleをインストールできます。
-これは ``python-distutils`` を通して行われます ::
+"make install" を使ってAnsibleをインストールできます。
+これは `python-distutils` を通して行われます:
+
+.. code-block:: bash
 
     $ git clone git://github.com/ansible/ansible.git
     $ cd ./ansible
@@ -111,7 +122,7 @@ Make install
 
 
 pipの場合
----------
++++++++++
 
 あなたはPythonデベロッパーですか？
 
@@ -121,26 +132,32 @@ Ansibleはpipでもインストールできますが、その場合、オプシ�
     $ sudo easy_install pip
     $ sudo pip install ansible
 
-``virtualenv`` を使う読者は ``virtualenv`` の下にAnsibleをインストールすること
-もできます。Ansibleをインストールするために直接 ``easy_install`` を使わないで
+virtualenv を使う読者は virtualenv の下にAnsibleをインストールすること
+もできます。Ansibleをインストールするために直接 easy_install を使わないで
 ください。
 
 
 RPMの場合
----------
++++++++++
 
-最後のAnsibleリリースのRPSが、EPEL6と現在サポートされているFedoraディストリ
-ビューションで利用できます。Ansible自体はPython2.4以降が含まれている以前の
-オペレーティング・システムを管理できます。
+最後のAnsibleリリースのRPMが、 `EPEL <http://fedraproject.org/wiki/EPEL>`_ 6と
+現在サポートされているFedoraディストリビューションで利用できます。
+Ansible自体はPython2.4以降が含まれている以前のオペレーティング・システムを
+管理できます。
 
-RHELやCentOSを使用していて、まだ設定していない場合は `EPELを設定します`_ ::
+RHELやCentOSを使用していて、まだ設定していない場合は
+`EPELを設定します <http://fedraproject.org/wiki/EPEL>`_
+
+.. code-block:: bash
 
     # install the epel-release RPM if needed on CentOS, RHEL, or Scientific Linux
     $ sudo yum install ansible
 
 あなたが配布およびインストールするRPMをビルドするために ``make rpm`` コマンドを
 使うこともできます。 ``rpm-build`` 、 ``make`` および ``python2.x-devel`` が
-インストールされていることを確認してください ::
+インストールされていることを確認してください。
+
+.. code-block:: bash
 
     $ git clone git://github.com/ansible/ansible.git
     $ cd ./ansible
@@ -149,10 +166,13 @@ RHELやCentOSを使用していて、まだ設定していない場合は `EPEL�
 
 
 RHELおよびCentOS5のためのPython2.6 EPELの説明
-=============================================
+`````````````````````````````````````````````
 
 これらのディストリビューションは、デフォルトでPython2.6が入っていませんが、
 簡単にインストール可能です。
+
+.. code-block:: bash
+
 
 .. note:: 訳注
 
@@ -160,15 +180,19 @@ RHELおよびCentOS5のためのPython2.6 EPELの説明
 
 
 MacPortsの場合
---------------
+++++++++++++++
 
 OS X向けポーティングはMacPortsで利用可能で、MacPortsからAnsibleの安定バージョンを
-インストールする (これは推奨する方法です) ために、これを実行します::
+インストールする (これは推奨する方法です) ために、これを実行します:
+
+.. code-block:: bash
 
     $ sudo port install ansible
 
 Gitでチェックアウトしたソースから、MacPortsシステムを通じて最新のビルドを
-インストールしたい場合は、以下のとおりに実行します::
+インストールしたい場合は、以下のとおりに実行します:
+
+.. code-block:: bash
 
     $ git clone git://github.com/ansible/ansible.git
     $ cd ./ansible/packaging/macports
@@ -179,59 +203,66 @@ MacPortsでのPortfileの使用に関する詳しい情報は、< http://www.mac
 
 
 UbuntuとDebian
---------------
+++++++++++++++
 
-Ubuntu向けビルドは `このPPA`_ のものが利用可能です。
+Ubuntu向けビルドは `このPPAのもの <https://launchpad.net/~rquillo/+archive/ansible>`_ が
+利用可能です。
 
-Debian/Ubuntu 向けパッケージのレシピも、チェックアウトしたソースからビルドできます
-::
+Debian/Ubuntu 向けパッケージのレシピも、チェックアウトしたソースからビルドできます:
+
+.. code-block:: bash
 
     $ make debian
 
 Gentoo、Archおよびその他
-------------------------
+++++++++++++++++++++++++
 
-Gentoo eBuildはportageに含まれており、まもなくバージョン1.0.0になります ::
+Gentoo eBuildはportageに含まれており、
+`まもなく <https://bugs.gentoo.org/show_bug.cgi?id=461830>`_ バージョン1.0.0になります。
+
+.. code-block:: bash
 
     $ emerge ansible
 
-ArchのPKGBUILDは AUR_ にあるものが利用可能です。ArchにPython3がインストール
-されている場合は、 ``python`` を ``python2`` にシンボリックリンクしたくなるかも
-しれません ::
+ArchのPKGBUILDは `AUR <https://aur.archlinux.org/packages.php?ID=58621>`_ にある
+ものが利用可能です。ArchにPython3がインストールされている場合は、 python を python2 に
+シンボリックリンクしたくなるかもしれません:
+
+.. code-block:: bash
 
     $ sudo ln -sf /usr/bin/python2 /usr/bin/python
 
-``python`` が ``python3`` を指しているホストでのために ``'ansible_python_interpreter'``
+python が python3 を指しているホストでのために 'ansible_python_interpreter'
 インベントリ変数の設定も必要です。そうすれば管理されるノードで正しくpythonを
 見つけることができます。
 
 
 タグ付きリリース
-----------------
+++++++++++++++++
 
 リリースのtarボールは、ansible.cc のページにあるものが利用可能です。
 
-- `Ansible/downloads`_
+* `Ansible/downloads <https://ansible.cc/releases>`_
 
 これらのリリースは、gitリポジトリでもリリースバージョンでタグ付けされています。
 
 
 ParamikoとネイティブSSHの選択
-=============================
+`````````````````````````````
 
 デフォルトでは、AnsibleはSSH経由で管理対象ノードとやり取りを行うためにParamikoを
 使用しています。Paramikoは高速で非常に透過的に動作し、設定の必要がなく、ほとんど
 のユーザに適しています。しかし、一部の人達が使いたいような先進的な機能をサポート
 していません。
 
-*バージョン 0.5 から*
+.. versionadded:: 0.5
 
 あなたが (Kerberos対応のSSHやジャンプホストのような) 先進的な機能を活用したい
-なら、任意のAnsibleコマンドに ``'--connection=ssh'`` を渡すか、環境変数
-``ANSIBLE_TRANSPORT`` に'ssh'を設定します。これでAnsibleは代わりにopensshを
+なら、任意のAnsibleコマンドに "--connection=ssh" を渡すか、環境変数
+ANSIBLE_TRANSPORT に'ssh'を設定します。これでAnsibleは代わりにopensshを
 使うようになります。
 
-``ANSIBLE_SSH_ARGS`` が設定されていない場合、Ansibleはデフォルトでいくつか
+ANSIBLE_SSH_ARGS が設定されていない場合、Ansibleはデフォルトでいくつか
 気の利いたControlMasterオプションを使おうとします。この環境変数を上書きすること
 は自由ですが、転送のパフォーマンスを確保するためにはControlMasterオプションを
 渡す必要があります。ControlMasterを使うと、どちらの転送もほぼ同じ速度です。
@@ -242,34 +273,40 @@ ControlMasterを使わないと、バイナリのssh転送はかなり遅くな�
 
 
 はじめてのコマンド
-==================
+``````````````````
 
-さて、Ansibleがインストールできたので、今度は試す番です:
+さて、Ansibleがインストールできたので、今度は試す番です。
 
-``/etc/ansible/hosts`` を編集 (または作成) し、 ``authrized_keys`` にあなたの
+/etc/ansible/hosts を編集 (または作成) し、 ``authrized_keys`` にあなたの
 SSH鍵を持っている一つまたはそれ以上のリモートホストを追加します::
 
     192.168.1.50
     aserver.example.org
     bserver.example.org
 
-何度もパスワードを入力しないで済むように、SSHエージェントを立ちあげます::
+何度もパスワードを入力しないで済むように、SSHエージェントを立ちあげます:
+
+.. code-block:: bash
 
     $ ssh-agent bash
     $ ssh-add ~/.ssh/id_rsa
 
-(セットアップによっては、代わりにpemファイルを指定するためにAnsibleの
-'--private-key' オプションを使ってもよいでしょう)
+(セットアップによっては、代わりにpemファイルを指定するためにAnsibleの --private-key
+オプションを使ってもよいでしょう)
 
-すべてのノードにpingを投げます::
+すべてのノードにpingを投げます:
+
+.. code-block:: bash
 
     $ ansible all -m ping
 
 AnsibleはちょうどSSHと同じように、現在のユーザ名を使ってマシンへのリモート
-接続を試みます。リモートのユーザ名を上書きするには、単に ``-u`` の
-パラメータを使います。
+接続を試みます。リモートのユーザ名を上書きするには、単に '-u' のパラメータを
+使います。
 
-sudoモードでアクセスしたい場合は、それを行うためのフラグもあります::
+sudoモードでアクセスしたい場合は、それを行うためのフラグもあります:
+
+.. code-block:: bash
 
     # as bruce
     $ ansible all -m ping -u bruce
@@ -287,50 +324,27 @@ Flags passed dot sudo can also be set.)
    訳せず。
 
 
-今度は通常のコマンドをすべてのノードで実行します::
+今度は通常のコマンドをすべてのノードで実行します:
+
+.. code-block:: bash
 
     $ ansible all -a "/bin/echo hello"
 
 おめでとうございます。今まさに、Ansibleを使ってノードに連絡しました。今度は
-現実世界の `コマンドラインの例と次のステップ`_ のいくつかを読んだり、別の
-モジュールで何ができるかを探る番です。Ansibleプレイブック言語も同様です。
+現実世界の :doc:`examples` のいくつかを読んだり、別の
+モジュールで何ができるかを探る番です。Ansible :doc:`playbooks` 言語も同様です。
 Ansibleは単にコマンドを実行するだけではなく、構成管理やデプロイの機能も
 備えています。調べることはたくさんありますが、あなたはもう完全に動作する
 インフラを持っています！
 
 
-.. admonition:: See Also
+.. seealso::
 
-   `コマンドラインの例と次のステップ`_
+   :doc:`examples`
      基本的なコマンドの例
-
-   `プレイブック`_
+   :doc:`playbooks`
      Ansibleの構成管理言語を学ぶ
-
-   `メーリングリスト`_
+   `メーリングリスト <http://groups.google.com/group/ansible-project>`_
      質問？ヘルプ？アイデア？Google Groupsへお立ち寄りください
-
-   `irc.freenode.net`_
+   `irc.freenode.net <http://irc.freenode.net/>`_
      #ansible IRC Chatチャンネル
-
-.. ------------------------------------------------------------
-.. external link
-
-.. _epel: http://fedoraproject.org/wiki/EPEL
-.. _`EPELを使うと`: epel_
-.. _`EPELを設定します`: epel_
-
-.. _ppa: https://launchpad.net/~rquillo/+archive/ansible
-.. _`このPPA`:
-
-.. _aur: https://aur.archlinux.org/packages.php?ID=58621
-
-.. _rel: http://ansible.cc/releases
-.. _`Ansible/downloads`: rel_
-
-
-.. _`コマンドラインの例と次のステップ`: ./command_line_examples_and_next_steps.rst
-.. _`プレイブック`: ./playbook.rst
-
-.. _`メーリングリスト`: http://groups.google.com/group/ansible-project
-.. _`irc.freenode.net`: http://irc.freenode.net/
