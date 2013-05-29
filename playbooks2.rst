@@ -301,8 +301,8 @@ vars_promptは入力されたデータを暗号化できるので、例えばuse
 インストールしないというような単純なものかも知れないし、ファイルシステムが一杯に
 なっている時に何かをクリーンアップ手順を実行するものかも知れません。
 
-ansibleでは `only_if` 句を使うと、これを簡単に行えます。これは実際にはPythonの式です。
-慌てる必要はありません -- 実際、かなり簡単です::
+ansibleでは `only_if` 句を使うと、これを簡単に行えます。これは実際にはPythonの
+式です。慌てる必要はありません -- 実際、かなり簡単です::
 
     vars:
       favcolor: blue
@@ -453,11 +453,248 @@ when_boolean は、'True'や'true'のような文字列、非ゼロの数など�
 条件付きインポート
 ``````````````````
 
+時には、特定の基準に基いて、１つのプレイブックで違うことをやりたいことがある
+でしょう。複数のプラットフォームやOSバージョンで動作するプレイブックを作るのが
+良い例です。
+
+例のように、Apacheのパッケージ名はCentOSとDebianでは異なるかもしれませんが、
+ansibleプレイブックでは最小限の構文で簡単に処理できます::
+
+    ---
+    - hosts: all
+      user: root
+      vars_files:
+        - "vars/common.yml"
+        - [ "vars/$facter_operatingsystem.yml", "vars/os_defaults.yml" ]
+      tasks:
+      - name: make sure apache is running
+        action: service name=$apache state=running
+
+.. note::
+   変数 (`$facter_operatingsystem`) がvars_filesに定義されているファイル名の
+   リストに補完されています。
+
+念のためですが、各YAMLファイルにはキーと値だけが含まれています::
+
+    ---
+    # for vars/CentOS.yml
+    apache: httpd
+    somethingelse: 42
+
+どのように動作するでしょうか？オペレーティング・システムがCentOSであった場合、
+１つ目のファイルに、ansibleは'vars/CentOS.yml'をインポートしようとし、それがもし
+存在しない場合には'vars/os_default.yml'でフォローしようとします。リスト内の
+ファイルが見つからない場合、エラーが発生するでしょう。
+Debianの場合は'vars/os_default.yml'に行く前に、'vars/CentOS.yml'の代わりに
+'vars/Debian.yml'を最初に見に行きます。かなりシンプルですね。
+
+この条件付きインポート機能を使うには、プレイブックを実行する前にfacterやohaiの
+インストールが必要ですが、これはもちろんこのようにしてansibleに任せてしまえます::
+
+    # for facter
+    ansible -m yum -a "pkg=facter ensure=installed"
+    ansible -m yum -a "pkg=ruby-json ensure=installed"
+
+    # for ohai
+    ansible -m yum -a "pkg=ohai ensure=installed"
+
+ansibleの設定に対するアプローチ -- 変数をタスクから分離し、醜くネストしたif文や
+条件文によってプレイブックが無秩序なコードになってしまうことを防ぐ、など - その
+結果として、より合理的かつ検査可能構成ルールをもたらす -- は、特に意思決定の要点
+の最小値を追求するものです。
+
+
 ループ
 ``````
 
+タイプ量を抑えるため、繰り返しのタスクは次のように短く記述できます::
+
+    - name: add several users
+      action: user name=$item state=present groups=wheel
+      with_items:
+         - testuser1
+         - testuser2
+
+変数ファイルや'vars'セクションでYAMLリストを定義している場合、このようにも
+できます::
+
+    with_items: $somelist
+
+上記は次のように評価されます::
+
+    - name: add user testuser1
+      action: user name=testuser1 state=present groups=wheel
+    - name: add user testuser2
+      action: user name=testuser2 state=present groups=wheel
+
+yumやaptのモジュールは少数のパッケージマネージャトランザクションを実行するのに
+with_itemsを利用します。
+
+'with_items'でイテレートする項目の種類は、必ずしも単純な文字列のリストである
+必要はありません。もしハッシュのリストがあれば、このようにしてサブキーを参照
+できます::
+
+    ${item.subKeyName}
+
+
 参照プラグイン - 外部データにアクセスする
 `````````````````````````````````````````
+
+.. versionadded: 0.8
+
+さまざまな'lookupプラグイン'で、データをイテレートする方法が追加できます。
+ansibleは、時間とともにより多くこれらの機能を持つでしょう。APIの節で説明されて
+いるように、自分で記述できます。それぞれ通常はリストや１つ以上のパラメータを
+受け取れます。
+
+'with_fileglob'は、単一ディレクトリ内でパターンに一致するすべてのファイルに
+非再帰的にマッチします。これはこのように使えます::
+
+    ----
+    - hosts: all
+
+      tasks:
+
+        # first ensure our target directory exists
+        - action: file dest=/etc/fooapp state=directory
+
+        # copy each file over that matches the given pattern
+        - action: copy src=$item dest=/etc/fooapp/ owner=root mode=600
+          with_fileglob:
+            - /playbooks/files/fooapp/*
+
+'with_file'は、ファイルディレクトリからデータを読み込みます::
+
+        - action: authorized_key user=foo key=$item
+          with_file:
+             - /home/foo/.ssh/id_rsa.pub
+
+別のやり方として、このようにlookupプラグインは変数にアクセスもできます::
+
+        vars:
+            motd_value: $FILE(/etc/motd)
+            hosts_value: $LOOKUP(file,/etc/hosts)
+
+.. versionadded: 0.9
+
+新しいlookup機能の多くは0.9で追加されました。lookupプラグインは"管理する"マシンの
+上で実行されることを覚えておいて下さい::
+
+    ---
+    - hosts: all
+
+      tasks:
+
+         - action: debug msg="$item is an environment variable"
+           with_env:
+             - HOME
+             - LANG
+
+         - action: debug msg="$item is a line from the result of this command"
+           with_lines:
+             - cat /etc/motd
+
+         - action: debug msg="$item is the raw result of running this command"
+           with_pipe:
+              - date
+
+         - action: debug msg="$item is value in Redis for somekey"
+           with_redis_kv:
+             - redis://localhost:6379,somekey
+
+         - action: debug msg="$item is a DNS TXT record for example.com"
+           with_dnstxt:
+             - example.com
+
+         - action: debug msg="$item is a value from evaluation of this template"
+           with_template:
+              - ./some_template.j2
+
+これらの値は変数に代入できるので、代わりにこのように実行したいでしょう。
+変数はタスク(やテンプレート)の中で使用されるときに評価されます::
+
+    vars:
+        redis_value: $LOOKUP(redis,redis://localhost:6379,info_${inventory_hostname})
+        auth_key_value: $FILE(/home/mdehaan/.ssh/id_rsa.pub)
+
+    tasks:
+        - debug: msg=Redis value for host is $redis_value
+
+.. versionadded: 1.0
+
+'with_sequence'は、昇順の数値を含むアイテムのシーケンスを生成します。開始と終了、
+およびオプションでステップ値を指定できます。
+
+引数は、キーと値のペアか "[start-]end[/stride][:format]"形式がショートカットとして
+使えます。formatはprintfスタイルの文字列です。
+
+数値は10進数、16進数 (0x3f8)、または8進数(0600)が指定できます。負の数はサポート
+されません。これは次のように動作します::
+
+    ---
+    - hosts: all
+
+      tasks:
+
+        # create groups
+        - group: name=evens state=present
+        - group: name=odds state=present
+
+        # create 32 test users
+        - user: name=$item state=present groups=odds
+          with_sequence: 32/2:testuser%02x
+
+        - user: name=$item state=present groups=evens
+          with_sequence: 2-32/2:testuser%02x
+
+        # create a series of directories for some reason
+        - file: dest=/var/stuff/$item state=directory
+          with_sequence: start=4 end=16
+
+        # a simpler way to use the sequence plugin
+        # create 4 groups
+        - group: name=group${item} state=present
+          with_sequence: count=4
+
+.. versionadded: 1.1
+
+'with_password'と、関連するマクロ "$PASSWORD" はランダムに平文のパスワードを
+生成し、与えられたファイルにそれを保存します。(vars_promptのような) 暗号化
+保存モードは保留されています。
+ファイルが既に存在する場合、"$PASSWORD"/'with_password'は、ちょうど
+$FILE/'with_file'のように振る舞い、ファイルの内容を取得します。ファイルパスに
+"${inventory_hostname}"のように変数を使う方法は、ホストごとにランダムな
+パスワードを設定するために使えます。
+
+生成されたパスワードは、ASCII文字の大文字と小文字、0-9の数字、記号(".,:-_") を
+ランダムな組み合わせを含みます。生成されたパスワードのデフォルトの長さは30文字
+です。この長さは、追加のパラメータを渡すことで変更できます::
+
+    ---
+    - hosts: all
+
+      tasks:
+
+        # create a mysql user with a random password:
+        - mysql_user: name=$client
+                      password=$PASSWORD(credentials/$client/$tier/$role/mysqlpassword)
+                      priv=$client_$tier_$role.*:ALL
+
+        (...)
+
+        # dump a mysql database with a given password (this example showing the other form).
+        - mysql_db: name=$client_$tier_$role
+                    login_user=$client
+                    login_password=$item
+                    state=dump
+                    target=/tmp/$client_$tier_$role_backup.sql
+          with_password: credentials/$client/$tier/$role/mysqlpassword
+
+        # make a longer or shorter password by appending a length parameter:
+        - mysql_user: name=some_name
+                      password=$item
+          with_password: files/same/password/everywhere length=15
+
 
 環境設定 (とプロキシ経由での動作)
 `````````````````````````````````
