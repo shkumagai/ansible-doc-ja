@@ -699,26 +699,211 @@ $FILE/'with_file'のように振る舞い、ファイルの内容を取得しま
 環境設定 (とプロキシ経由での動作)
 `````````````````````````````````
 
+.. versionadded: 1.1
+
+プロキシを介してパッケージの更新を取得する必要があるとか、いくつかのパッケージ
+はプロキシを介してアップデートを入手しつつ、他のパッケージはプロキシを介さずに
+パッケージにアクセスする、ということも充分に可能です。ansibleは'environment'
+キーワードを使うことによってあなたの環境を簡単に構成できるようにします。
+次に例を示します::
+
+    - hosts: all
+      user: root
+
+      tasks:
+
+        - apt: name=cobbler state=installed
+          environment:
+            http_proxy: http://proxy.example.com:8080
+
+environmentは変数に格納できるので、このようにアクセスできます::
+
+    - hosts: all
+      user: root
+
+      # here we make a variable named "env" that is a dictionary
+      vars:
+        proxy_env:
+          http_proxy: http://proxy.example.com:8080
+
+      tasks:
+
+        - apt: name=cobbler state=installed
+          environment: $proxy_env
+
+上ではプロキシを設定を示しているだけですが、任意の数の設定を提供できます。
+環境設定のハッシュを定義するのに最も理に適っている場所は、group_varsファイル
+かも知れません::
+
+    ----
+    # file: group_vars/boston
+
+    ntp_server: ntp.bos.example.com
+    backup: bak.bos.example.com
+    proxy_env:
+      http_proxy: http://proxy.bos.example.com:8080
+      https_proxy: http://proxy.bos.example.com:8080
+
+
 ファイルから値を取得する
 ````````````````````````
+
+.. versionadded:: 0.8
+
+時には、ファイルの内容を直接、プレイブックの中にインクルードしたことがある
+でしょう。マクロを使えばそれはできます。
+この構文は今後のバージョンでも残るでしょうが、我々はlookupプラグインを使って
+同じように実行する方法("複数のループ"を参照のこと)を提供する予定です。
+以下は、authorized_keysモジュールを使った例で、パラメータとして、実際の
+SSHキーの実際のテキストを必要とします::
+
+    tasks:
+        - name: enable key-based ssh access for users
+          authorized_key: user=$item key='$FILE(/keys/$item)'
+          with_items:
+             - pinky
+             - brain
+             - snowball
+
+"$PIPE"マクロは、それをコマンド文字列に与える場合を除き、単にファイルのように
+動作します。$FILEと同じように、リモートではなくローカルで実行されます。
+
+ansibleが遅延評価を使用しているので、"$PIPE"は使用される度に実行されます。
+例えば、変数定義で使用されていて、それぞれのホストで別々に実行される場合には、
+変数が評価される度に実行されます。
+
 
 変数によってファイルとテンプレートを選択する
 ````````````````````````````````````````````
 
+設定ファイルをコピーしたかったり、使用するテンプレートが変数に依存するような
+場合があります。
+次の構文は、特定のホストの変数として適している、利用可能な最初のファイルを
+選択しますが、これはしばしばテンプレートの中で沢山のif条件文を書くよりもずっと
+簡潔です。
+
+次の例は、曰くCentOSとDebianの間で全く異なる設定ファイルをテンプレート出力する
+方法を示しています::
+
+    - name: template a file
+      action: template src=$item dest=/etc/myapp/foo.conf
+      first_available_file:
+        - /srv/templates/myapp/${ansible_distribution}.conf
+        - /srv/templates/myapp/default.conf
+
+first_avaiable_file はcopyとtemplateモジュールでのみ使えます。
+
+
 非同期アクションとポーリング
 ````````````````````````````
+
+デフォルトでは、プレイブック内のタスクブロックは、各ノードでタスクが完了する
+まで接続を開いたまま保持することを意味します。小さい並列度の値でプレイブックを
+実行する場合 (別名 ``--forks``)、実行時間の長い操作がもっと早く終ったらいい
+のに、と思うかも知れません。これを実現する最も簡単な方法は、一度にすべてを
+キックして、それらが終了するまでポーリングすることです。
+
+また、タイムアウトの対象となる可能性のある非常に実行時間の長い操作に、非同期
+モードを使いたいとも思うでしょう。
+
+非同期タスクを起動するには、タスクの最大実行時間とステータスをポーリングしたい
+頻度を指定します。 `poll` に値をしていなかった場合、デフォルトのポーリング間隔は
+10秒です::
+
+    ---
+    - hosts: all
+      user: root
+      tasks:
+      - name: simulate long running op (15 sec), wait for up to 45, poll every 5
+        action: command /bin/sleep 15
+        async: 45
+        poll: 5
+
+.. note::
+   非同期時間制限にデフォルト値はありません。'async'キーワードを付けなかった
+   場合、タスクはansibleのデフォルトで、同期的に実行されます。
+
+また、タスクの完了を待つ必要がない場合は、pollの値に0を指定して"点けっ放し"に
+することができます::
+
+    ---
+    - hosts: all
+      user: root
+      tasks:
+      - name: simulate long running op, allow to run for 45, fire and forget
+        action: command /bin/sleep 15
+        async: 45
+        poll: 0
+
+.. note::
+   あなたが同じリソースに対して、プレイブックの後の方で他のコマンドを
+   実行しようとするなら、yumトランザクションのような排他的ロックが必要な
+   操作は"点けっ放し"にするべきではありません。
+
+.. note::
+   ``--forks`` に高い値を使うと、結果として実行した非同期タスクの開始が
+   より高速になります。またポーリングの効率がよくなります。
+
 
 ローカルプレイブック
 ````````````````````
 
+SSH越しに接続するよりも、プレイブックをローカルで使うと有用な場合があります。
+これはcrontabにプレイブックを入れて、システムの構成を保証するのに役立ちます。
+これはまた、Anacondaキックスタートのような、OSの中でプレイブックを実行させる
+ためにも使えます。
+
+プレイブックを完全にローカルで実行するには、単純に"hosts:"行に
+"hosts:127.0.0.1"を設定してからそのプレイブックを実行します::
+
+    ansible-playbook playbook.yml --connection=local
+
+また、local接続は単独プレイブックのプレイに使うことができ、そのプレイブックの
+他のプレイがデフォルトのリモート接続を使っていても使用可能です::
+
+    hosts: 127.0.0.1
+    connection: local
+
+
 fact をオフにする
 `````````````````
+
+一元的に自分のシステムについてすべてを把握していて、各ホストについていずれの
+factデータも必要ないことが分かっている場合は、factの収集をオフにできます。
+これは非常に台数の多いシステムに対してプッシュモードでansibleをスケールさせたり
+、主に実験的なプラットフォームでansibleを使っている場合に利点があります。
+どんなプレイでも、こうするだけです::
+
+    - hosts: whatever
+      gather_facts: no
+
 
 Pullモードプレイブック
 ``````````````````````
 
+ローカルモード(上記)でのプレイブックの使用は、 `ansible-pull` を加えると
+非常に強力になります。ansible-pull を設定するスクリプトは、Githubから
+チェックアウトしたソースの examples/playbooks ディレクトリの中に提供されて
+います。
+
+基本的な発想は、それぞれの管理対象のノードにansibleのリモートコピーを設定して、
+それぞれのセットでcronによる実行とgitによるプレイブックソースの更新を行える
+ようにするために、ansibleを使用するものです。これはデフォルトでプッシュ・
+アーキテクチャのansibleをプル・アーキテクチャに反転させるもので、無限に近い
+可能性を秘めています。セットアップのためのプレイブックは、cronの実行頻度、
+ログの出力場所、ansible-pullのためのパラメータを設定できます。
+
+これは極端なスケールアウトのためだけではなく、定期的な修復にも有効です。
+ansible-pullの実行したログを取得するための'fetch'モジュールの使い方は
+ansible-pullのリモートログを収集・分析するための優れた方法でしょう。
+
+
 変数を登録する
 ``````````````
+
+.. versionadded:: 0.7
+
+
 
 ローリングアップデート
 ``````````````````````
