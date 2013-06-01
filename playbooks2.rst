@@ -903,28 +903,280 @@ ansible-pullのリモートログを収集・分析するための優れた方�
 
 .. versionadded:: 0.7
 
+プレイブックの中で、与えられたコマンドの結果を変数に格納し、後でそれにアクセス
+することが役に立つ場合がしばしばあります。コマンドモジュールのこのような使い方
+は、例えば、特定のプログラムの存在をテストすることができるので、多くの場合、
+サイト特有のfactを記述する必要を排除することができます。
+
+'register'キーワードは、結果を保存する変数を決定します。結果の入った変数は、
+テンプレート、アクション行およびonly_if文で使えます。(本当にちょっとした例ですが)
+このようになります::
+
+    - name: test play
+      hosts: all
+
+      tasks:
+
+          - action: shell cat /etc/motd
+            register: motd_contents
+
+          - action: shell echo "motd contains the word hi"
+            only_if: "'${motd_contents.stdout}'.find('hi') != -1"
 
 
 ローリングアップデート
 ``````````````````````
 
+.. versionadded:: 0.7
+
+デフォルトでは、ansibleは並行してプレイの中で参照されているすべてのマシンを
+管理しようとします。ローリングアップデートの場合は、"serial"キーワードを使う
+ことで、ansibleが一度にいくつのマシンを管理すべきかを定義できます::
+
+    - name: test play
+      hosts: webservers
+      serial: 3
+
+上の例では、ホストが100台ある場合、'webservers'グループに含まれる3台のホストは
+次の3台のホストに移る前に、完全にプレイを完了します。
+
 デリゲーション (移譲)
 `````````````````````
+
+.. versionadded:: 0.7
+
+他のホストを参照して、あるホスト上でタスクを実行したい場合は、そのタスクに
+'delegate_to'キーワードを使います。
+これは負荷分散されたプールにノードを追加したり、外したりする場合に理想的です。
+また、停止期間を制御するのにも非常に便利です。一度に実行するホストの数を制御
+するために'serial'キーワードと一緒に使うのも良いアイデアです::
+
+    ---
+    - hosts: webservers
+      serial: 5
+
+      tasks:
+      - name: take out of load balancer pool
+        action: command /usr/bin/take_out_of_pool $inventory_hostname
+        delegate_to: 127.0.0.1
+
+      - name: actual steps would go here
+        action: yum name=acme-web-stack state=latest
+
+      - name: add back to load balancer pool
+        action: command /usr/bin/add_back_to_pool $inventory_hostname
+        delegate_to: 127.0.0.1
+
+これらのコマンドはansibleを実行しているマシン、127.0.0.1で実行されます。これらの
+タスクごとの単位で使える省略構文: 'local_action' もあります。
+こちらは上のプレイブックと同じですが、127.0.0.1に移譲するための省略構文を使って
+います::
+
+    ---
+    # ...
+      tasks:
+      - name: take out of load balancer pool
+        local_action: command /usr/bin/take_out_of_pool $inventory_hostname
+
+    # ...
+
+      - name: add back to load balancer pool
+        local_action: command /usr/bin/add_back_to_pool $inventory_hostname
+
+一般的なパターンは、管理対象サーバに対してファイルを再帰的にコピーするのに、
+'rsync'を呼び出すために、ローカルアクションを使うことです。次に例を示します::
+
+    ---
+    # ...
+      tasks:
+      - name: recursively copy files from management server to target
+        local_action: command rsync -a /path/to/files $inventory_hostname:/path/to/target/
+
+これを実行するためには、パスフレーズなしのsshかsshエージェントが必要なことに
+注意してください。そうでないとrsyncはパスフレーズの確認を必要とします。
+
 
 Fireballモード
 ``````````````
 
+.. versionadded:: 0.8
+
+ansibleの'local'、'paramiko'および'ssh'のコア接続タイプに、バージョン0.8以降
+では 'fireball'と呼ばれる接続タイプが拡張されました。これはプレイブックとだけ
+使用でき、 ansibleの通常の"起動処理不要"の哲学から外れた、いくつか追加の設定を
+必要とします。 ansibleを使うのにfireballモードの使用は必須ではありませんが、
+一部のユーザは喜ぶかも知れません。
+
+fireballモードは、デフォルトではシャットダウン前の30分の間だけ、ssh経由で
+一時的に0mqデーモンを起動することで動作します。fireballモードは一度起動すると
+セッションの暗号化のために一時的なAESキーを使用し、設定されたポート上での、
+特定のノードとの直接通信を必要とします。デフォルトは5099です。
+fireballデーモンは設定を変更すると、任意のユーザで実行します。なので、自分でも
+rootとしても実行できます。
+複数のユーザが、同じホスト群でansibleを使っている場合は、固有のポートを使う
+ように気をつけてください。
+
+fireballモードは、paramikoを使ったノード間通信よりもだいたい10倍程度速く、
+たくさんのホストがある場合には良い選択肢となるでしょう::
+
+    ---
+
+    # set up the fireball transport
+    - hosts: all
+      gather_facts: no
+      connection: ssh # or paramiko
+      sudo: yes
+      tasks:
+          - action: fireball
+
+    # these operations will occur over the fireball transport
+    - hosts: all
+      connection: fireball
+      tasks:
+          - action: shell echo "Hello ${item}"
+            with_items:
+                - one
+                - two
+
+fireballモードを使うためには、両方のホストで特定の依存関係のインストールが必要
+です。任意のプラットフォーム上で、最初の起動処理のための基礎として、このプレイ
+ブックが使えます。またパッケージマネージャで、gccとzeromq-develのインストールが
+必要ですが、これももちろんansibleでインストールできます::
+
+    ---
+    - hosts: all
+      sudo: yes
+      gather_facts: no
+      connection: ssh
+      tasks:
+          - action: easy_install name=pip
+          - action: pip name=$item state=present
+            with_items:
+              - pyzmq
+              - pyasn1
+              - PyCrypto
+              - python-keyczar
+
+FedoraおよびEPELには、fireballの依存ライブラリに使えるサブパッケージもあります。
+
+また、モジュールのドキュメントの節も参照してください。
+
+
 変数の優先順位を理解する
 ````````````````````````
+
+すでに、インベントリホストやグループ変数、'vars'、'vars_files'については学び
+ました。
+
+もし同じ名前の変数が２箇所以上で定義されている場合、その変数の値を設定している
+場所を決定するための優先順位があります。小さい番号ほど、優先順位は高いです::
+
+1. ansible-playbookコマンドラインで、--extra-vars (-e) を使って指定された任意の
+   変数
+
+2. プレイブック内で 'vars_files' に記述されているYAMLファイルから読み込まれた変数
+
+3. 組み込みまたはカスタムのfact、もしくは'register'キーワードで割り当てられた変数
+
+4. タスクインクルード文にパラメータ化して渡された変数
+
+5. プレイブック内の'vars'で定義された変数
+
+6. インベントリのホスト変数
+
+7. 継承順に従ったインベントリのグループ変数。これはグループがサブグループを含む
+   場合、サブグループ内の変数はより高い優先順位を持つことを意味します。
+
+そのため、なにかデフォルトの値を設定して、他のどこかでそれを上書きしたいなら、
+デフォルトのような値を設定するのに最適な場所は、グループ変数です。
+'group_vars/all'ファイルは、他がすべてこれらの値よりも高い優先順位を持っている
+ので、サイト全体で有効なグローバル変数を置くのに最も適した場所になります。
+
 
 チェックモード ("Dry Run") --check
 ``````````````````````````````````
 
+.. versionadded:: 1.1
+
+ansible-playbookを--checkを付けて実行すると、リモートのシステムにはなんの変更も
+行いません。その代わりに、'チェックモード'のサポート (これはprimaryコアモジュー
+ルに含まれていますが、すべてのモジュールでそれを行う必要はありません) を備えて
+いるあらゆるモジュールは、行うであろう変更を報告します。チェックモードをサポート
+していない他のモジュールは何も行わないので、それらのモジュールが行うであろう
+変更も報告はされません。
+
+チェックモードはただのシミュレーションなので、先行するコマンドの結果に依存する
+条件を使った手順がある場合は、あまり役に立たないかも知れません。
+しかし、"1度に1ノード"の基本的な構成管理のユースケースには最適です。
+
+例::
+
+    ansible-playbook foo.yml --check
+
+
 --diff で差分を表示する
 ```````````````````````
 
+.. versionadded:: 1.1
+
+ansible-playbookの--diffオプションは、--check (詳細は上述) と一緒に使うと
+素晴らしい効果がありますが、単独でも使用できます。このフラグが渡されると、
+リモートシステム上でテンプレート出力ファイルが変更された場合に、
+ansible-playbook CLI に、ファイルに大して行われたテキストの変更内容 (または、
+--checkと同時に使った場合は、行われるであろう変更内容) の報告が戻ってきます。
+差分機能は大量に出力を行うので、このように一度に単一のホストをチェックするのが
+最適です::
+
+    ansible-playbook foo.yml --check --diff --limit foo.example.com
+
+
 辞書＆入れ子(複合)引数
 ``````````````````````
+
+おさらいですが、ansibelのほとんどのタスクはこの形式です::
+
+    tasks:
+
+      - name: ensure the cobbler package is installed
+        yum: name=cobbler state=installed
+
+しかし、場合によっては、ハッシュ (辞書) から直接引数を供給するほうが便利です。
+実際に、ごく一部のモジュール (CloudFormations モジュールは1つです) は、実際に
+複雑な引数を必要とします。それらはこのように動作します::
+
+    tasks:
+
+      - name: call a module that requires some complex arguments
+        foo_module:
+           fibonacci_list:
+             - 1
+             - 1
+             - 2
+             - 3
+           my_pets:
+             dogs:
+               - fido
+               - woof
+             fish:
+               - limpet
+               - nemo
+               - ${other_fish_name}
+
+上述のように、これらは内部変数として使うこともできます。
+
+local_actionを使う場合、このようにできます::
+
+    - name: call a module that requires some complex arguments
+      local_action:
+        module: foo_module
+        arg1: 1234
+        arg2: 'asdf'
+
+これらはもちろん、より冗長ですが、技術的には正しい構文です::
+
+    - name: foo
+      template: { src: '/templates/motd.j2', dest: '/etc/motd' }
+
 
 スタイルのポイント
 ``````````````````
