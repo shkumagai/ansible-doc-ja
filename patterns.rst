@@ -5,8 +5,8 @@
 
 .. イメージ省略
 
-ansibleはあなたのインフラの複数のシステムに対して、同時に機能します。
-これは、デフォルトでは /etc/ansible/hosts にあるansibleのインベントリ
+Ansibleはあなたのインフラの複数のシステムに対して、同時に機能します。
+これは、デフォルトでは /etc/Ansible/hosts にあるAnsibleのインベントリ
 ファイルにリストされたシステムの一部を選択することによって行われます。
 
 .. contents:: `Table of contents`
@@ -18,7 +18,7 @@ ansibleはあなたのインフラの複数のシステムに対して、同時�
 ホストとグループ
 ++++++++++++++++
 
-/etc/ansible/hosts の書式はINI形式で、このようになります::
+/etc/Ansible/hosts の書式はINI形式で、このようになります::
 
     mail.example.com
 
@@ -45,7 +45,7 @@ ansibleはあなたのインフラの複数のシステムに対して、同時�
 
     jumper ansible_ssh_port=5555 ansible_ssh_host=192.168.1.50
 
-上の例で、ansibleを実行するとホストの別名 "jumper" (実際のホスト名ではないかも
+上の例で、Ansibleを実行するとホストの別名 "jumper" (実際のホスト名ではないかも
 しれない) に対して、アドレス192.168.1.50のポート5555で接続しようとします。
 
 もっと多くのホストを追加するには？ 0.6以降では、多くのホストが次のように似た
@@ -66,9 +66,9 @@ ansibleはあなたのインフラの複数のシステムに対して、同時�
 
     [targets]
 
-    localhost              ansible_connection=local
-    other1.example.com     ansible_connection=ssh        ansible_ssh_user=mpdehaan
-    other2.example.com     ansible_connection=ssh        ansible_ssh_user=mdehaan
+    localhost              Ansible_connection=local
+    other1.example.com     Ansible_connection=ssh        Ansible_ssh_user=mpdehaan
+    other2.example.com     Ansible_connection=ssh        Ansible_ssh_user=mdehaan
 
 インベントリファイルをシンプルに保ちたい場合、これらすべての変数はインベントリ
 ファイルの外の 'host_vars' に設定することもできます。
@@ -88,8 +88,8 @@ ansibleはあなたのインフラの複数のシステムに対して、同時�
 
 :doc:`playbooks` では、これらのパターンはより大きな目的のために使えます。
 
-ともかく、ansibleを使うには、まず最初にインベントリファイル内のホスト名を
-ansibleに伝える方法を知っておく必要があります。
+ともかく、Ansibleを使うには、まず最初にインベントリファイル内のホスト名を
+Ansibleに伝える方法を知っておく必要があります。
 これは特定のホストまたはホストのグループを指定することによって行われます。
 
 次のパターンは、インベントリファイル内のすべてのホストをターゲットとします::
@@ -143,7 +143,7 @@ ansibleに伝える方法を知っておく必要があります。
 ホスト変数
 ++++++++++
 
-後でプレイブックの中で利用されるホストに変数を代入するのは簡単です::
+後でplaybookの中で利用されるホストに変数を代入するのは簡単です::
 
     [atlanta]
     host1 http_port=80 maxRequestsPerChild=808
@@ -248,8 +248,8 @@ Tip: インベントリファイルや変数をgitリポジトリ (または他�
    :doc:`examples`
        基本的なコマンドの例
    :doc:`playbooks`
-       ansibleの構成管理言語を学ぶ
-   `Mailing List <http://groups.google.com/group/ansible-project>`_
+       Ansibleの構成管理言語を学ぶ
+   `Mailing List <http://groups.google.com/group/Ansible-project>`_
        Questions? Help? Ideas?  Stop by the list on Google Groups
    `irc.freenode.net <http://irc.freenode.net>`_
        #ansible IRC chat channel
