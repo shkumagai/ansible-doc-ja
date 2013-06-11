@@ -372,21 +372,113 @@ checkモード
 省略記法 vs JSON
 ````````````````
 
+bashでより簡単にモジュールを記述する場合や、JSONモジュールが使えない場合、
+このように、モジュールはkey=valueをすべて1行で出力することができます。Ansible
+のパーサは何をすべきか知っています::
+
+    somekey=1 somevalue=2 rc=3 favcolor=red
+
+しかし、あなたがPythonでもRubyでもその他の何かでモジュールを書いているので
+あっても、JSONを返すのがおそらく最も簡単なやり方です。
 
 
 自分のモジュールのドキュメントを書く
 ````````````````````````````````````
 
+コアディストリビューションに含まれるすべてのモジュールは、 ``DOCUMENTATION``
+文字列を持つ必要があります。この文字列は、以下に定義されたスキーマに準拠した、
+有効名YAMLドキュメントでなければなりません。Pythonファイルに含める前に、YAMLの
+シンタックスハイライトをしたエディタ上で ``DOCUMENTATION`` 文字列を書き始める
+のが簡単でしょう。
+
+
 例
 ++++
+
+これが ``DOCUMENTAION`` 文字列として使用できる、正しい書式のYAMLドキュメントです:
+
+.. literalinclude:: ../../example/DOCUMENTAION.yaml
+
+これはAnsibleのGithubリポジトリの'examples'ディレクトリで利用でき、
+``./hacking/module_formatter.py -G`` で生成できます。あなたのモジュールにそれを
+コピーして、自分のドキュメントを書き始める出発点として使えます。
+
+このように、あなたのモジュールに含めます::
+
+    #!/usr/bin/env python
+    # Copyright header....
+
+    DOCUMENTATION = '''
+    ---
+    module: modulename
+    short_description: This is a sentence describing the module
+    # ... snip ...
+    examples:
+        - code: modulename opt1=arg1 opt2=arg2
+          description: Optional words describing this example
+    '''
+
+
+``description`` 、 ``notes`` および ``examples`` 内の ``description`` は
+一部の出力フォーマットをサポートします（例: ``rst`` や ``man`` ）。
+フォーマット機能 ``U()`` 、 ``M()`` 、 ``I()`` および ``C()`` は、それぞれ
+URL、モジュール、イタリック体、そして等幅です。ファイルやオプションの名前は
+``C()`` を、またパラメータを参照する場合には ``I()`` を使うことが推奨されて
+いて、モジュール名は ``M(module)`` のように指定する必要があります。
+
+（一般的にコロンやクォート等を含む）例はYAMLでフォーマットするのは難しいので、
+このようにモジュールの中に ``EXAMPLES`` 文字列の中のプレーンテキストで
+（代わりに、または付加的）に記述できます::
+
+    EXAMPLES = '''
+    - action: modulename opt1=arg1 opt2=arg2
+    '''
+
+``module_formatter.py`` スクリプトや ``ansible-doc(1)`` は、YAMLドキュメント
+文字列内に既にあるはずの例よりも後に、 ``EXAMPLES`` のblobを追加します。
 
 
 ビルド & テスト
 +++++++++++++++
 
+'library'ディレクトリにあなたの完成したモジュールファイルを配置したら、
+``make webdocs`` コマンドを実行します。新しい'modules.html'が生成され、
+'docsite/'ディレクトリに現れます。
+
+また ``module_formatter.py`` を使って、ドキュメントをひとつずつテスト構築する
+こともできます::
+
+.. code-block:: bash
+
+   $ ./hacking/module_formatter.py -t man -M library/ -m git > ansible-git.1
+   $ man ./ansible-git.1
+
+これはgitのモジュールのmanページを構築し、モジュールのソースとして'library/'
+ディレクトリを参照します。その他利用可能な出力フォーマットをすべて表示するには::
+
+.. code-block:: bash
+
+   $ ./hacking/module_formatter.py -t --help
+
+.. tip::
+
+   YAML構文に問題を抱えている場合には `YAML Lint <http://www.yamllint.com/>`_
+   のウェブサイト上で検証できます。
+
+.. tip::
+
+   モジュールのデバッグができるように、Ansibleがリモートのファイルを削除しない
+   ようにANSIBLE_KEEP_REMOTE_FILE=1 が使えます。
+
 
 あなたのモジュールをコアに
 ``````````````````````````
+
+最小限の依存関係を備えた高品質のモジュールはコアに含めることができますが、コア
+モジュールは（開発者のプログラミングの好みによりますが）、Pythonで実装され、
+AnsibleModule共通コードを使用し、一般的にはプログラムの残りの部分と一貫性のある
+引数を使う必要があります。要件についての問い合わせはメーリングリストにお立ち寄り
+ください。
 
 
 .. seealso::
