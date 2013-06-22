@@ -230,6 +230,53 @@ conf.dファイルに適切または似たような名前を付けるために�
 例: AWS EC2 外部インベントリスクリプト
 ``````````````````````````````````````
 
+Amazon Web Service EC2 を使っている場合、インベントリファイルを維持するのは最善の
+アプローチではないかも知れません。なぜなら、
+`EC2外部インベントリ <https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.py>`_
+スクリプトが使えます。
+
+次のいずれかの方法でこのスクリプトを使えます。最も簡単な方法は、Ansibleのコマンド
+ラインオプション ``-i`` を使い、スクリプトのパスを指定することです。
+
+    ansible -i ec2.py -u ubuntu us-east-1d -m ping
+
+2つ目の方法は `/etc/ansible/hosts` にスクリプトをコピーし、 `chmod +x` します。
+`ec2.ini <https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.ini>`_
+ファイルも `/etc/ansible/ec2.ini` にコピーする必要があります。
+それから、Ansibleを通常どおりに実行できます。
+
+APIにうまくAWSを呼び出しさせるためには、Boto (AWSのPythonインターフェース)を設定
+する必要があります。
+`様々な方法 <http://docs.pythonbot.org/en/latest/boto_config_tut.html>`_ が
+ありますが、最も簡単なのは単に環境変数を２つエクスポートするだけです:
+
+    export AWS_ACCESS_KEY_ID='AK123'
+    export AWS_SECRET_ACCESS_KEY='abc123'
+
+設定が正しいことを確認するために、自分自身でスクリプトをテストすることができます
+
+    cd plugins/inventory
+    ./ec2.py --list
+
+しばらくすると、すべてのリージョンを横断したEC2全体のインベントリを含むJSONが表示
+されるはずです。
+
+各リージョンはそれぞれのAPIを呼び出す必要があるので、もしリージョンの小さなセット
+だけを使っている場合 ``ec2.ini`` を自由に編集して関心のあるリージョンだけを記入
+してください。 ``ec2.ini`` にはキャッシュ制御や宛先変数を含む、他の設定オプション
+があります。
+
+根本的には、インベントリファイルは単に某かの名前から宛先へのマッピングです。
+デフォルトの ``ec2.ini`` 設定は、EC2外部（例えばあなたのラップトップ）から
+Ansibleを実行するために構成されています。もしEC2上からAnsibleを実行している場合、
+内部DNSとIPアドレスのほうが、パブリックDNSよりも理に適っているかも知れません。
+この場合、 ``ec2.ini`` の ``destination_variable`` をインスタンスのプライベート
+DNS名になるように変更できます。インスタンスにアクセスする唯一の手段がプライベート
+IPアドレスを介してのみのVPCで、内部のプライベートサブネットでAnsibleを実行して
+いる場合、これは特に重要です。VPCインスタンスの場合、
+
+
+
 例: OpenStack インベントリスクリプト
 ````````````````````````````````````
 
