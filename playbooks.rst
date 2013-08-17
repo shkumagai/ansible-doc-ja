@@ -95,6 +95,15 @@ sudoからの実行のサポートも用意されています::
       user: yourname
       sudo: yes
 
+play全体の代わりに特定のタスクに対してのみsudoすることもできます::
+
+    ---
+    - hosts: webservers
+      user: yourname
+      tasks:
+        - service: name=nginx state=started
+          sudo: yes
+
 自分のアカウントでログインしてから、別のroot以外の別のユーザにsudoもできます::
 
     ---
@@ -135,30 +144,38 @@ sudoのパスワードを指定する場合は、 `ansible-playbook` を ``--ask
          van_halen_port: 5150
          other: 'magic'
 
+.. note::
+   変数を個別のファイルに保持して、play中の `vars_file` 宣言とインラインの
+   `vars` と一緒に、それらをインクルードすることもできます。詳しくは
+   `高度なPlaybookの章 <http://ansible.cc/docs/playbooks2.html#variable-file-separation>`_
+   を参照してください。
+
 これらの変数はplaybookの後半でこのように使えます::
 
-    $varname or ${varname}
+    $varname or ${varname} or {{ varname }}
 
-後の書き方は、 ${other}_some_string のような何かをする必要がある場合に便利です。
+文字列を大文字化するなど複雑なことをしたい場合には、Jinja2 テンプレートエンジンが
+使うように {{ varname }} がベストです。出力が文字列である場合には、いつもこの
+フォームを使う習慣を身に付けておくことをおすすめします。
 
-テンプレートの中では、 `Jinja2 <http://jinja.pocoo.org/docs/>`_ テンプレート言語
-のフルパワーを使うこともできるので、このようになります::
+ですが、他の単純な値を参照する場合には $x や ${x} を使っても大丈夫です。
+これは、データ構造が別のデータ構造の値を持つ場合には一般的です。
 
-    {{ varname }}
+もっとJinja2について学ぶため、必要に応じて `Jinja2 docs <http://jinja.pocoo.org/docs/>`_
+を参照できますが、Jinja2のループや条件分岐はAnsibleの'templates'のみのもので、
+playbook では ansible がループや条件分岐のために 'when' や 'with' キーワードを
+持っていることを覚えておいてください。
 
-Jinja2のドキュメントには、より高度にテンプレートを利用する人のためにループや
-条件分岐を組み立てる方法についての情報を提供しています。これはオプショナルですし、
-$varname形式もまだテンプレートファイルで機能します。
+システムについての変数がある場合、それは'facts'と呼ばれ、これらの変数はplaybookに
+戻され、ただ明示的に設定された変数のように、各システムで使えます。ansibleは、
+'ansible'のプレフィックスが付いたこれらをいくつか提供していて、モジュールの
+ドキュメントの 'setup' の下に記載されています。さらに、factsはもしそれらが
+インストールされていれば、ohaiやfacterによって収集できます。facterの変数には
+プレフィックス ``facter_`` が付き、ohaiの変数にはプレフィックス ``ohai_`` が
+付きます。これらは単に、追加の依存関係を足し、このような他のシステムからユーザを
+簡単に移植するためのものです。
 
-システムについての変数がある場合、それは'facts'と呼ばれ、これらの変数は
-playbookに戻され、ただ明示的に設定された変数のように、各システムで使えます。
-ansibleは、'ansible'のプレフィックスが付いたこれらをいくつか提供していて、
-モジュールのドキュメントの 'setup' の下に記載されています。
-さらに、factsはもしそれらがインストールされていれば、ohaiやfacterによって収集
-できます。facterの変数にはプレフィックス ``facter_`` が付き、ohaiの変数には
-プレフィックス ``ohai_`` が付きます。
-
-なので例えば、/etc/motd ファイルにホスト名を書き込みたい場合には、こう言うことが
+例はどうでしょう。 /etc/motd ファイルにホスト名を書き込みたい場合には、こう言うことが
 できます::
 
     - name: write the motd
@@ -168,7 +185,8 @@ ansibleは、'ansible'のプレフィックスが付いたこれらをいくつ�
 
     You are logged into {{ facter_hostname }}
 
-しかし、ちょっと先走り過ぎてしまいました。さぁ、タスクについて話しましょう。
+しかし、前倒しでplaybook内のタスクを示すだけのつもりが、ちょっと先走り過ぎて
+しまいました。さぁ、タスクについて話しましょう。
 
 
 タスクリスト
@@ -241,8 +259,8 @@ action行が気持ちよく書くにはあまりにも長すぎる場合には�
 仮定すると、このようにできます::
 
     tasks:
-      - name: create a virtual host file for $vhost
-        action: template src=somefile.j2 dest=/etc/httpd/conf.d/$vhost
+      - name: create a virtual host file for {{ vhost }}
+        action: template src=somefile.j2 dest=/etc/httpd/conf.d/{{ vhost }}
 
 それら同様の変数はテンプレートの中でも使えますが、それは追々触れます。
 
@@ -277,12 +295,14 @@ action行が気持ちよく書くにはあまりにも長すぎる場合には�
 システム上で変更を行なった際には連携ができます。playbookはこれを認識し、
 変化に対応するために使える基本的なイベントシステムを持っています。
 
-これらの'通知'アクションはplaybookの中の、各playの終わりにトリガされ、
-またトリガはそれぞれ一度だけです。例えば、複数のリソースはapacheを再起動する
-必要があるが、apacheには一度だけ知らされます。
+これらの'通知'アクションはplaybookの中の、各タスクブロックの終わりにトリガされ、
+また複数の異なるタスクによって通知されても、トリガされるのは一度だけです。
 
-ここではファイルの内容が変更された時に２つのサービスをリスタートする例を示しますが、
-ファイルの変更があった時だけです::
+例えば、複数のリソースはconfigファイルを変更されているので、apacheを再起動する
+必要がありますが、不必要な再起動を避けるためapacheには一度だけ知らされます。
+
+ここではファイルの内容が変更された時に２つのサービスをリスタートする例を
+示しますが、ファイルの変更があった時だけです::
 
     - name: template configuration file
       action: template src=template.j2 dest=/etc/foo.conf
@@ -310,6 +330,18 @@ action行が気持ちよく書くにはあまりにも長すぎる場合には�
 
 .. note::
    ハンドラの通知は書かれた順番で実行されます。
+
+role は後で説明します。ハンドラが 'pre_tasks'、'roles'、'tasks' そして
+'post_tasks' の間で自動的に処理される事は注目に値します。ですが、もしすべての
+ハンドラコマンドを直ちにフラッシュしたい場合、1.2以降であればこのようにできます::
+
+    tasks:
+       - shell: some tasks go here
+       - meta: flush_handlers
+       - shell: some other tasks
+
+上記の例では、'meta'ステートメントに到達した時に、キューされている任意のハンドラは
+先に処理されます。これは少しニッチなケースですが、時々便利なことがあります。
 
 
 タスクインクルードファイルと再利用の勧め
@@ -349,7 +381,7 @@ includeディレクティブはこのようになり、playbookの中で通常�
 
 渡された変数は、インクルードされたファイルの中で使用できます。このように参照できます::
 
-    $user
+    {{ user }}
 
 (明示的に渡したパラメータに加えて、varsセクションのすべての変数も同じようにここで
 利用可能です。)
@@ -421,7 +453,111 @@ playbook内の別のplaybookを含む場合、変数の置換ができないこ�
    ロール指向に構築しなおすことを検討してください。どのインクルードファイルを
    使うのかを決めるために'fact'を使うことはできません。playに含まれるすべての
    ホストは同じタスクを得ようとします。
-   ('only_if'は、ホストが条件によってタスクをスキップする機能を提供します。)
+   (*when* は、ホストが条件によってタスクをスキップする機能を提供します。)
+
+
+ロール
+``````
+
+.. versionadded: 1.2
+
+vars_files、タスクそしてハンドラについて学んだ今、あなたのplaybookを整理するのに
+最良の方法は何でしょうか？端的に言うとroleを使うことです！roleは既知のファイル
+構造に基いて、あるvars_files、タスク、ハンドラを自動的に読み込む方法です。
+roleによってコンテンツをグループ化すると、他のユーザとroleを簡単に共有できます。
+
+roleは上で再度説明したように、単に'include'ディレクティブを中心とした自動化で、
+実際に参照先ファイルの検索パス処理を改善する以外に、追加の魔法はほぼありません。
+しかし、効果は絶大です。
+
+プロジェクト構造の例::
+
+    site.yml
+    webservers.yml
+    fooservers.yml
+    roles/
+       common/
+         files/
+         templates/
+         tasks/
+         handlers/
+         vars/
+       webservers/
+         files/
+         templates/
+         tasks/
+         handlers/
+         vars/
+
+playbookの中はこのような感じです::
+
+    ---
+    - hosts: webservers
+      roles:
+         - common
+         - webservers
+
+これはそれぞれのrole 'x' に対して以下の動作を指示します:
+
+- roles/x/tasks/main.yml が存在する場合、そこに記載されているタスクがplayに
+  追加されます
+- roles/x/handlers/main.yml が存在する場合、そこに記載されているハンドラがplayに
+  追加されます
+- roles/x/vars/main.yml が存在する場合、そこに記載されている変数がplayに
+  追加されます
+- 任意のcopyタスクは、相対的または絶対的パスを用いることなく roles/x/files/ の
+  中のファイルを参照できます
+- 任意のscriptタスクは、相対的または絶対的パスを用いることなく roles/x/files/ の
+  中野ファイルを参照できます
+- 任意のtemplateタスクは、相対的または絶対的パスを用いることなく roles/x/templates/
+  の中のファイルを参照できます
+
+ファイルがなにも存在しない場合は、単に無視します。なので、例えばroleに'vars/'サブ
+ディレクトリが無くても大丈夫です。
+
+注意してほしいことは、playbookの中でroleを使わずに"緩く"タスクやvars_files、
+ハンドラを書き連ねることも依然としてできますが、roleは良い整理機能なので強くお勧め
+します。playbook内に緩いモノがある場合、roleが最初に評価されます。
+
+roleをパラメータ化する必要があるなら、変数を追加して、このようにすることも
+できます::
+
+    ---
+    - hosts: webservers
+      roles:
+        - common
+        - { role: foo_app_instance, dir: '/opt/a',  port: 5000 }
+      roles:
+        - common
+        - { role: foo_app_instance, dir: '/opt/a',  port: 5000 }
+        - { role: foo_app_instance, dir: '/opt/b',  port: 5001 }
+
+また、それほど頻繁に行うべきものではありませんが、条件付きでroleを適用することも
+できます::
+
+    ---
+    - hosts: webservers
+      roles:
+        - { role: some_role, when: "ansible_os_family == 'RedHat'" }
+
+これは、roleの中のすべてのタスクに条件を適用して動作します。条件文はドキュメントの
+後半でカバーされています。
+
+playにまだ'tasks'セクションがある場合、それらのタスクはroleが適用された後に
+実行されます。
+
+あるタスクをroleの前と後に定義したい場合、このようにすることができます::
+
+    ---
+    - hosts: webservers
+      pre_tasks:
+        - shell: echo 'hello'
+      roles:
+        - { role: some_role }
+      tasks:
+        - shell: echo 'still busy'
+      post_tasks:
+        - shell: echo 'goodbye'
 
 
 playbookの実行

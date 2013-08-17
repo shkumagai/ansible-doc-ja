@@ -26,7 +26,7 @@
 
     tasks:
 
-        - action: yum name=$item state=installed
+        - action: yum name={{ item }} state=installed
           with_items:
              - httpd
              - memcached
@@ -54,7 +54,7 @@ playbookファイルをインクルードできます。
 すべてのデータベースサーバを定義しているとしましょう。このように、あなたの
 システム全体を再構築するための"site.yml"を作ることができます::
 
-    ----
+    ---
     - include: playbooks/webservers.yml
     - include: playbooks/dbservers.yml
 
@@ -80,28 +80,21 @@ playbookファイルをインクルードできます。
 ``````````````````````````````
 
 ネットワーク情報のように、提供されるfactの一部は入れ子データ構造のとして
-利用できます。それらにアクセスするには、単純に'$foo'では不十分ですが、それでも
-やり方は簡単です。これはIPアドレスを取得する方法です::
-
-    ${ansible_eth0.ipv4.address}
-
-また、その要素である配列変数にアクセスすることもできます::
-
-    ${somelist[0]}
-
-そして、配列とハッシュリファレンスの構文を混在させることができます。
-
-テンプレートでは、単純なアクセス形態をいまだ保持していますが、必要であれば
-よりPythonネイティブなやり方でJinja2からアクセスできます::
+利用できます。それらにアクセスするには、単純に {{ foo }} では不十分ですが、
+それでもやり方は簡単です。これはIPアドレスを取得する方法です::
 
     {{ ansible_eth0["ipv4"]["address"] }}
 
+同様に、これは配列の最初の要素にアクセスする方法です::
+
+    {{ foo[0] }}
 
 マジック変数と他ホストの情報にアクセスする方法
 ``````````````````````````````````````````````
 
 自身で定義をしていなくても、ansibleは自動的にいくつかの変数を提供します。
-これらの中で最も重要なのは 'hostvars'、'group_names'、そして'groups'です。
+これらの中で最も重要なのは 'hostvars'、'group_names'、そして'groups'です。これらの
+名前は予約済みとして、ユーザは使うべきではありません。'environment'も予約済みです。
 
 hostvars はそのホストについて収集されたfactを含めて、他のホストの変数について
 問い合わせることができます。この時点で、もしまだplaybookやplaybookの
@@ -110,15 +103,6 @@ hostvars はそのホストについて収集されたfactを含めて、他の�
 
 データベースサーバが別ノードのfactや別ノードにアサインされたインベントリ変数を
 使いたい場合、テンプレートやaction行の中でも簡単につかうことができます::
-
-    ${hostvars.hostname.factname}
-
-playbookの中では、ホスト名にダッシュやピリオドが含まれている場合には、注意
-が必要です。このようにエスケープしてください::
-
-    ${hostvars.{test.example.com}.ansible_distribution}
-
-Jinja2テンプレートでは、このようにも記述できます::
 
     {{ hostvars['test.example.com']['ansible_distribution'] }}
 
@@ -284,49 +268,79 @@ vars_promptは入力されたデータを暗号化できるので、例えばuse
 
 例::
 
-    -----
-    - user: $user
-      hosts: $hosts
+    ---
+    - user: {{ user }}
+      hosts: {{ hosts }}
       tasks:
          - ...
 
     ansible-playbook release.yml --extra-vars "hosts=vipers user=starbuck"
 
+Ansible 1.2 以降では、このように括られたJSON形式で追加の変数を渡せます::
+
+    --extra-vars "{'pacman':'mrs','ghosts':['inky','pinky','clyde','sue']}"
+
+key=value の形式は明らかに簡単ですが、必要な場合にはこれがあります。
+
 
 条件付き実行
 ````````````
+
+(注意: このセクションでは、1.2の条件式をカバーしています。もし以前のバージョンを
+使用しているなら以前のバージョンのドキュメントを参照してください。
+`Ansible 1.1 Docs <http://ansible.cc/docs/released/1.1>`_ 古い条件式は1.2でも
+運用が続いていますが、新しい形式の方がよりクリーンです。)
 
 時に、特定のホストで、特定の手順をスキップしたくなることがあるでしょう。
 これは、オペレーティングシステムが特定のバージョンの場合には、あるパッケージを
 インストールしないというような単純なものかも知れないし、ファイルシステムが一杯に
 なっている時に何かをクリーンアップ手順を実行するものかも知れません。
 
-ansibleでは `only_if` 句を使うと、これを簡単に行えます。これは実際にはPythonの
+ansibleでは `when` 句を使うと、これを簡単に行えます。これは実際にはPythonの
 式です。慌てる必要はありません -- 実際、かなり簡単です::
 
-    vars:
-      favcolor: blue
-      is_favcolor_blue: "'$favcolor' == 'blue'"
-      is_centos: "'$facter_operatingsystem' == 'CentOS'"
+    tasks:
+      - name: "shutdown Debian flavored systems"
+        action: command /sbin/shutdown -t now
+        when: ansible_os_family == "Debian"
+
+たくさんのJinja2の "filters" がwhenステートメントでも使うことができ、そのうちの
+幾つかはAnsibleが独自に提供しているものです。あるステートメントでのエラーを
+無視して、成功か失敗かに基づいた条件判定で何かを実行したいとします::
 
     tasks:
-      - name: "shutdown if my favorite color is blue"
-        action: command /sbin/shutdown -t now
-        only_if: '$is_favcolor_blue'
+      - action: command /bin/fail
+        register: result
+        ignore_errors: True
+      - action: command /bin/something
+        when: result|failed
+      - action: command /bin/something_else
+        when: result|success
 
+備忘録として、派生変数が利用できることを見ておきましょう。こうできます::
 
-その多くをsetupモジュールが提供する、ansibleから湧き出る変数はここで使えますし、
-`facter` や `ohai` などのツールからの変数も、インストールされていれば使えます。
-念のためですが、これらの変数はプレフィックスが付きます。
-なので `$operatingsystem` ではなく `$facter_operationsystem` です。
-ansibleの組み込み変数はプレフィックス `ansible_` が付きます。
+    ansible hostname.example.com -m setup
 
-only_if 式は実際には小さな小さなPythonの断片なので、変数はクォートし、評価結果が
-`True` か `False` になるように気をつけてください。playやplaybookの間で
-再利用し易くするには、条件式をすべて'vars'で定義するの代わりに'vars_files'を
-使うことをおすすめします。
+Tip: 時には、文字列の変数を手に入れ、それを比較したいことがあるでしょう。
+このようにしてできます::
 
-ここでは'os.path.exists'のように、生のチェックはできませんので、しないでください。
+    tasks:
+      - shell: echo "only on Red Hat 6, derivatives, and later"
+        when: ansible_os_family == "RedHat" and ansible_lsb.major_version|int >= 6
+
+playbookやインベントリの中で定義された変数も使えます。
+
+もし、必須の変数が設定されていない場合、Jinja2の `defined` テストを使ってスキップ
+させたり失敗させることができます。例えば::
+
+    tasks:
+        - shell: echo "I've got '{{ foo }}' and am not afraid to use it!"
+          when: foo is defined
+
+        - fail: msg="Bailing out: this play requires 'bar'"
+          when: bar is not defined
+
+これは変数ファイルのインポート条件 (下記参照) との組み合わせで、特に便利です。
 
 もし必要なら、自分用のfactを提供することもできます。これは :doc:`moduledev` で
 触れています。それを実行するには、カスタムのfact収集モジュールをタスクリストの
@@ -336,110 +350,28 @@ only_if 式は実際には小さな小さなPythonの断片なので、変数は
     tasks:
         - name: gather site specific fact data
           action: site_facts
-        - action: command echo ${my_custom_fact_can_be_used_now}
+        - action: command echo {{ my_custom_fact_can_be_used_now }}
 
-only_if を使った便利なコツの一つは、最後に実行したコマンドの変更された結果から
-キーを取得するやりかたです。例としては::
+*when* 使った便利なコツの一つは、最後に実行したコマンドの変更された結果からキーを
+取得するやりかたです。例としては::
 
     tasks:
         - action: template src=/templates/foo.j2 dest=/etc/foo.conf
           register: last_result
         - action: command echo 'the file has changed'
-          only_if: '${last_result.changed}'
+          when: last_result.changed
 
-$last_resultはregisterディレクティブに設定された変数です。これはansible0.8以降を
-想定しています。
+{{ last_result }} はregisterディレクティブによって設定される変数です。これは
+Ansible 0.8以降を想定しています。
 
-ansible0.8では、変数が定義済みか否かを確認するショートカットがいくつか使えます::
-
-    tasks:
-        - action: command echo hi
-          only_if: is_set('$some_variable')
-
-同じように動作する'is_unset'があります。関数内の引数のクォートは必須です。
-
-`only_if` と `with_items` を組み合わせる場合、 `only_if` の文は各項目毎に別々に
-処理されることに注意してください。
+`when` と `with_items` を組み合わせる場合、 `when` の文は各項目毎に別々に処理
+されることに注意してください。
 これは仕様によるものです::
 
     tasks:
-        - action: command echo $item
-          with_item: [ 0, 2, 4, 6, 8, 10 ]
-          only_if: "$item > 5"
-
-`only_if` は上級ユーザにとってはかなり良いオプションですが、私たちが望んだ以上に
-中身を見せてしまっているので、もっとにいいやり方があるはずです。
-1.0では、'when'を追加しました。これはこの複雑なレベルを隠蔽するものであり、
-`only_if` のシンタックスシュガーのようなものです。詳しくは次をご覧ください。
-
-
-条件付き実行 (簡易版)
-`````````````````````
-
-.. versionadded: 0.8
-
-ansible 0.9で、私たちは only_if は文法的に少し複雑なこと、そしてユーザに対して
-Pythonの部分を露呈させ過ぎたことに気づきました。その結果、 'when' キーワードの
-セットが追加されました。'when'文はクォートしたり、特定の型にキャストする必要は
-ありませんが、使用されるすべての引数を半角スペースで区切る必要があります。
-ほとんどの場合、ユーザは'when'を利用できますが、より複雑なケースでは依然として
-'only_if'が必要とされるでしょう。
-
-これは'when'の様々な使い方の例です。同一タスク内で、'when'は'onli_if'と互換性
-はありません::
-
-    - name: "do this if my favcolor is blue, and my dog is named fido"
-      action: shell /bin/false
-      when_string: $favcolor == 'blue' and $dog == 'fido'
-
-    - name: "do this if my favcolor is not blue, and my dog is named fido"
-      action: shell /bin/true
-      when_string: $favcolor != 'blue' and $dog == 'fido'
-
-    - name: "do this if my SSN is over 9000"
-      action: shell /bin/true
-      when_integer: $ssn > 9000
-
-    - name: "do this if I have one of these SSNs"
-      action: shell /bin/true
-      when_integer:  $ssn in [ 8675309, 8675310, 8675311 ]
-
-    - name: "do this if a variable named hippo is NOT defined"
-      action: shell /bin/true
-      when_unset: $hippo
-
-    - name: "do this if a variable named hippo is defined"
-      action: shell /bin/true
-      when_set: $hippo
-
-    - name: "do this if a variable named hippo is true"
-      action: shell /bin/true
-      when_boolean: $hippo
-
-when_boolean は、'True'や'true'のような文字列、非ゼロの数などのように、真と考え
-られる変数を探します。
-
-.. versionadded: 1.0
-
-1.0では、when_changedとwhen_failedも追加し、ユーザは先に登録されたタスクの状態を
-元にタスクを実行できます。例としては::
-
-    - name: "register a task that might fail"
-      action: shell /bin/false
-      register: result
-      ignore_errors: True
-
-    - name: "do this if the registered task failed"
-      action: shell /bin/true
-      when_failed: $result
-
-    - name: "register a task that might change"
-      action: yum pkg=httpd state=latest
-      register: result
-
-    - name: "do this if the registered task changed"
-      action: shell /bin/true
-      when_changed: $result
+        - action: command echo {{ item }}
+          with_items: [ 0, 2, 4, 6, 8, 10 ]
+          when: item > 5
 
 いくつかのタスクが同じ条件文を共有している場合は、タスクのインクルード文に条件を
 付与できます。これはplaybookのインクルードでは機能せず、タスクのインクルード
@@ -447,8 +379,7 @@ when_boolean は、'True'や'true'のような文字列、非ゼロの数など�
 それぞれすべてのタスクに適用されます::
 
     - include: tasks/sometasks.yml
-      when_string: "'reticulating splines' in $output"
-
+      when: "'reticulating splines' in output"
 
 条件付きインポート
 ``````````````````
@@ -465,13 +396,13 @@ ansibleplaybookでは最小限の構文で簡単に処理できます::
       user: root
       vars_files:
         - "vars/common.yml"
-        - [ "vars/$facter_operatingsystem.yml", "vars/os_defaults.yml" ]
+        - [ "vars/{{ ansible_os_family }}.yml", "vars/os_defaults.yml" ]
       tasks:
       - name: make sure apache is running
-        action: service name=$apache state=running
+        action: service name={{ apache }} state=running
 
 .. note::
-   変数 (`$facter_operatingsystem`) がvars_filesに定義されているファイル名の
+   変数 'ansible_os_family' がvars_filesに定義されているファイル名の
    リストに補完されています。
 
 念のためですが、各YAMLファイルにはキーと値だけが含まれています::
@@ -510,7 +441,7 @@ ansibleの設定に対するアプローチ -- 変数をタスクから分離し
 タイプ量を抑えるため、繰り返しのタスクは次のように短く記述できます::
 
     - name: add several users
-      action: user name=$item state=present groups=wheel
+      action: user name={{ item }} state=present groups=wheel
       with_items:
          - testuser1
          - testuser2
@@ -518,7 +449,7 @@ ansibleの設定に対するアプローチ -- 変数をタスクから分離し
 変数ファイルや'vars'セクションでYAMLリストを定義している場合、このようにも
 できます::
 
-    with_items: $somelist
+    with_items: somelist
 
 上記は次のように評価されます::
 
@@ -534,7 +465,11 @@ with_itemsを利用します。
 必要はありません。もしハッシュのリストがあれば、このようにしてサブキーを参照
 できます::
 
-    ${item.subKeyName}
+    - name: add several users
+      action: user name={{ item.name }} state=present groups={{ item.groups }}
+      with_items:
+        - { name: 'testuser1', groups: 'wheel' }
+        - { name: 'testuser2', groups: 'root' }
 
 
 参照プラグイン - 外部データにアクセスする
@@ -542,15 +477,15 @@ with_itemsを利用します。
 
 .. versionadded: 0.8
 
-さまざまな'lookupプラグイン'で、データをイテレートする方法が追加できます。
+さまざまな *lookupプラグイン* で、データをイテレートする方法が追加できます。
 ansibleは、時間とともにより多くこれらの機能を持つでしょう。APIの節で説明されて
 いるように、自分で記述できます。それぞれ通常はリストや１つ以上のパラメータを
 受け取れます。
 
-'with_fileglob'は、単一ディレクトリ内でパターンに一致するすべてのファイルに
+``with_fileglob`` は、単一ディレクトリ内でパターンに一致するすべてのファイルに
 非再帰的にマッチします。これはこのように使えます::
 
-    ----
+    ---
     - hosts: all
 
       tasks:
@@ -563,21 +498,15 @@ ansibleは、時間とともにより多くこれらの機能を持つでしょ�
           with_fileglob:
             - /playbooks/files/fooapp/*
 
-'with_file'は、ファイルディレクトリからデータを読み込みます::
+``with_file`` は、ファイルディレクトリからデータを読み込みます::
 
         - action: authorized_key user=foo key=$item
           with_file:
              - /home/foo/.ssh/id_rsa.pub
 
-別のやり方として、このようにlookupプラグインは変数にアクセスもできます::
-
-        vars:
-            motd_value: $FILE(/etc/motd)
-            hosts_value: $LOOKUP(file,/etc/hosts)
-
 .. versionadded: 0.9
 
-新しいlookup機能の多くは0.9で追加されました。lookupプラグインは"管理する"マシンの
+新しいlookup機能の多くは0.9で追加されました。lookupプラグインは *管理する* マシンの
 上で実行されることを覚えておいて下さい::
 
     ---
@@ -585,48 +514,37 @@ ansibleは、時間とともにより多くこれらの機能を持つでしょ�
 
       tasks:
 
-         - action: debug msg="$item is an environment variable"
-           with_env:
-             - HOME
-             - LANG
+         - action: debug msg="{{ lookup('env', 'HOME') }} is an environment variable"
 
-         - action: debug msg="$item is a line from the result of this command"
+         - action: debug msg="{{ item }} is a line from the result of this command"
            with_lines:
              - cat /etc/motd
 
-         - action: debug msg="$item is the raw result of running this command"
-           with_pipe:
-              - date
+         - action: debug msg="{{ lookup('pipe', 'date') }} is the raw result of running this command"
 
-         - action: debug msg="$item is value in Redis for somekey"
-           with_redis_kv:
-             - redis://localhost:6379,somekey
+         - action: debug msg="{{ lookup('redis_kv', 'redis://localhost:6379,somekey') ]} is value in Redis for somekey"
 
-         - action: debug msg="$item is a DNS TXT record for example.com"
-           with_dnstxt:
-             - example.com
+         - action: debug msg="{{ lookup('dnstxt', 'example.com') }} is a DNS TXT record for example.com"
 
-         - action: debug msg="$item is a value from evaluation of this template"
-           with_template:
-              - ./some_template.j2
+         - action: debug msg="{{ lookup('template', './some_template.j2') }} is a value from evaluation of this template"
 
-これらの値は変数に代入できるので、代わりにこのように実行したいでしょう。
-変数はタスク(やテンプレート)の中で使用されるときに評価されます::
+代替手段として、変数にlookupプラグインを割り当てたり、他の場所でそれらを使うこと
+ができます。このマクロはそれらがタスク (またはテンプレート) で使用されるたびに、
+評価されます::
 
     vars:
-        redis_value: $LOOKUP(redis,redis://localhost:6379,info_${inventory_hostname})
-        auth_key_value: $FILE(/home/mdehaan/.ssh/id_rsa.pub)
+      motd_value: "{{ lookup('file', '/etc/motd') }}"
 
     tasks:
-        - debug: msg=Redis value for host is $redis_value
+        - debug: msg="motd value is {{ motd_value }}"
 
 .. versionadded: 1.0
 
-'with_sequence'は、昇順の数値を含むアイテムのシーケンスを生成します。開始と終了、
-およびオプションでステップ値を指定できます。
+``with_sequence`` は、昇順の数値を含むアイテムのシーケンスを生成します。開始と
+終了、およびオプションでステップ値を指定できます。
 
-引数は、キーと値のペアか "[start-]end[/stride][:format]"形式がショートカットとして
-使えます。formatはprintfスタイルの文字列です。
+引数は、キーと値のペアで指定します。渡す場合、'format'はprintfスタイルの文字列
+です。
 
 数値は10進数、16進数 (0x3f8)、または8進数(0600)が指定できます。負の数はサポート
 されません。これは次のように動作します::
@@ -640,31 +558,28 @@ ansibleは、時間とともにより多くこれらの機能を持つでしょ�
         - group: name=evens state=present
         - group: name=odds state=present
 
-        # create 32 test users
-        - user: name=$item state=present groups=odds
-          with_sequence: 32/2:testuser%02x
+        # create some test users
+        - user: name={{ item }} state=present groups=odds
+          with_sequence: start=0 end=32 format=testuser%02x
 
-        - user: name=$item state=present groups=evens
-          with_sequence: 2-32/2:testuser%02x
-
-        # create a series of directories for some reason
-        - file: dest=/var/stuff/$item state=directory
-          with_sequence: start=4 end=16
+        # create a series of directories with even numbers for some reason
+        - file: dest=/var/stuff/{{ item }} state=directory
+          with_sequence: start=4 end=16 stride=2
 
         # a simpler way to use the sequence plugin
         # create 4 groups
-        - group: name=group${item} state=present
+        - group: name=group{{ item }} state=present
           with_sequence: count=4
 
 .. versionadded: 1.1
 
-'with_password'と、関連するマクロ "$PASSWORD" はランダムに平文のパスワードを
-生成し、与えられたファイルにそれを保存します。(vars_promptのような) 暗号化
-保存モードは保留されています。
-ファイルが既に存在する場合、"$PASSWORD"/'with_password'は、ちょうど
-$FILE/'with_file'のように振る舞い、ファイルの内容を取得します。ファイルパスに
-"${inventory_hostname}"のように変数を使う方法は、ホストごとにランダムな
-パスワードを設定するために使えます。
+``with_password`` と、関連するlookupマクロはランダムに平文のパスワードを生成し、
+与えられたファイルにそれを保存します。(vars_promptのような) 暗号化保存モードは
+保留されています。
+ファイルが既に存在する場合、単に'with_file'のように振る舞い、ファイルの内容を
+取得します。ファイルパスに
+"{{ inventory_hostname }}"のような変数の使い方は、ホストごとにランダムな
+パスワードを設定 ('host_vars'変数でパスワード管理を簡素化) するために使えます。
 
 生成されたパスワードは、ASCII文字の大文字と小文字、0-9の数字、記号(".,:-_") を
 ランダムな組み合わせを含みます。生成されたパスワードのデフォルトの長さは30文字
@@ -676,25 +591,28 @@ $FILE/'with_file'のように振る舞い、ファイルの内容を取得しま
       tasks:
 
         # create a mysql user with a random password:
-        - mysql_user: name=$client
-                      password=$PASSWORD(credentials/$client/$tier/$role/mysqlpassword)
-                      priv=$client_$tier_$role.*:ALL
+        - mysql_user: name={{ client }}
+                      password="{{ lookup('password', 'credentials/' + client + '/' + tier + '/' + role + '/mysqlpassword length=15') }}"
+                      priv={{ client }}_{{ tier }}_{{ role }}.*:ALL
 
         (...)
 
         # dump a mysql database with a given password (this example showing the other form).
-        - mysql_db: name=$client_$tier_$role
-                    login_user=$client
-                    login_password=$item
+        - mysql_db: name={{ client }}_{{ tier }}_{{ role }}
+                    login_user={{ client }}
+                    login_password={{ item }}
                     state=dump
-                    target=/tmp/$client_$tier_$role_backup.sql
-          with_password: credentials/$client/$tier/$role/mysqlpassword
+                    target=target=/tmp/{{ client }}_{{ tier }}_{{ role }}_backup.sql
+          with_password: credentials/{{ client }}/{{ tier }}/{{ role }}/mysqlpassword
 
-        # make a longer or shorter password by appending a length parameter:
-        - mysql_user: name=some_name
-                      password=$item
-          with_password: files/same/password/everywhere length=15
+        (...)
 
+        # create an user with a given password
+         - user: name=guestuser
+                 state=present
+                 uid=5000
+                 password={{ item }}
+           with_password: credentials/{{ hostname }}/userpassword encrypt=sha2     56_crypt
 
 環境設定 (とプロキシ経由での動作)
 `````````````````````````````````
@@ -729,13 +647,13 @@ environmentは変数に格納できるので、このようにアクセスでき
       tasks:
 
         - apt: name=cobbler state=installed
-          environment: $proxy_env
+          environment: "{{ proxy_env }}"
 
 上ではプロキシを設定を示しているだけですが、任意の数の設定を提供できます。
 環境設定のハッシュを定義するのに最も理に適っている場所は、group_varsファイル
 かも知れません::
 
-    ----
+    ---
     # file: group_vars/boston
 
     ntp_server: ntp.bos.example.com
@@ -759,18 +677,11 @@ SSHキーの実際のテキストを必要とします::
 
     tasks:
         - name: enable key-based ssh access for users
-          authorized_key: user=$item key='$FILE(/keys/$item)'
+          authorized_key: user={{ item }} key="{{ lookup('file', '/keys/' + item ) }}"
           with_items:
              - pinky
              - brain
              - snowball
-
-"$PIPE"マクロは、それをコマンド文字列に与える場合を除き、単にファイルのように
-動作します。$FILEと同じように、リモートではなくローカルで実行されます。
-
-ansibleが遅延評価を使用しているので、"$PIPE"は使用される度に実行されます。
-例えば、変数定義で使用されていて、それぞれのホストで別々に実行される場合には、
-変数が評価される度に実行されます。
 
 
 変数によってファイルとテンプレートを選択する
@@ -786,9 +697,9 @@ ansibleが遅延評価を使用しているので、"$PIPE"は使用される度
 方法を示しています::
 
     - name: template a file
-      action: template src=$item dest=/etc/myapp/foo.conf
+      action: template src={{ item }} dest=/etc/myapp/foo.conf
       first_available_file:
-        - /srv/templates/myapp/${ansible_distribution}.conf
+        - /srv/templates/myapp/{{ ansible_distribution }}.conf
         - /srv/templates/myapp/default.conf
 
 first_avaiable_file はcopyとtemplateモジュールでのみ使えます。
@@ -909,7 +820,7 @@ playbookの中で、与えられたコマンドの結果を変数に格納し、
 サイト特有のfactを記述する必要を排除することができます。
 
 'register'キーワードは、結果を保存する変数を決定します。結果の入った変数は、
-テンプレート、アクション行およびonly_if文で使えます。(本当にちょっとした例ですが)
+テンプレート、アクション行および *when* 文で使えます。(本当にちょっとした例ですが)
 このようになります::
 
     - name: test play
@@ -921,7 +832,7 @@ playbookの中で、与えられたコマンドの結果を変数に格納し、
             register: motd_contents
 
           - action: shell echo "motd contains the word hi"
-            only_if: "'${motd_contents.stdout}'.find('hi') != -1"
+            when: motd_contents.stdout.find('hi') != -1
 
 
 ローリングアップデート
@@ -957,14 +868,14 @@ playbookの中で、与えられたコマンドの結果を変数に格納し、
 
       tasks:
       - name: take out of load balancer pool
-        action: command /usr/bin/take_out_of_pool $inventory_hostname
+        action: command /usr/bin/take_out_of_pool {{ inventory_hostname }}
         delegate_to: 127.0.0.1
 
       - name: actual steps would go here
         action: yum name=acme-web-stack state=latest
 
       - name: add back to load balancer pool
-        action: command /usr/bin/add_back_to_pool $inventory_hostname
+        action: command /usr/bin/add_back_to_pool {{ inventory_hostname }}
         delegate_to: 127.0.0.1
 
 これらのコマンドはansibleを実行しているマシン、127.0.0.1で実行されます。これらの
@@ -976,12 +887,12 @@ playbookの中で、与えられたコマンドの結果を変数に格納し、
     # ...
       tasks:
       - name: take out of load balancer pool
-        local_action: command /usr/bin/take_out_of_pool $inventory_hostname
+        local_action: command /usr/bin/take_out_of_pool {{ inventory_hostname }}
 
     # ...
 
       - name: add back to load balancer pool
-        local_action: command /usr/bin/add_back_to_pool $inventory_hostname
+        local_action: command /usr/bin/add_back_to_pool {{ inventory_hostname }}
 
 一般的なパターンは、管理対象サーバに対してファイルを再帰的にコピーするのに、
 'rsync'を呼び出すために、ローカルアクションを使うことです。次に例を示します::
@@ -990,7 +901,7 @@ playbookの中で、与えられたコマンドの結果を変数に格納し、
     # ...
       tasks:
       - name: recursively copy files from management server to target
-        local_action: command rsync -a /path/to/files $inventory_hostname:/path/to/target/
+        local_action: command rsync -a /path/to/files {{ inventory_hostname }}:/path/to/target/
 
 これを実行するためには、パスフレーズなしのsshかsshエージェントが必要なことに
 注意してください。そうでないとrsyncはパスフレーズの確認を必要とします。
@@ -1033,7 +944,7 @@ fireballモードは、paramikoを使ったノード間通信よりもだいた�
     - hosts: all
       connection: fireball
       tasks:
-          - action: shell echo "Hello ${item}"
+          - action: shell echo "Hello {{ item }}"
             with_items:
                 - one
                 - two
@@ -1050,7 +961,7 @@ fireballモードを使うためには、両方のホストで特定の依存関
       connection: ssh
       tasks:
           - action: easy_install name=pip
-          - action: pip name=$item state=present
+          - action: pip name={{ item }} state=present
             with_items:
               - pyzmq
               - pyasn1
@@ -1065,32 +976,34 @@ FedoraおよびEPELには、fireballの依存ライブラリに使えるサブ�
 変数の優先順位を理解する
 ````````````````````````
 
-すでに、インベントリホストやグループ変数、'vars'、'vars_files'については学び
-ました。
+すでに、インベントリ変数、'vars'、'vars_files'については学びました。イベント内で
+同じ変数名が複数の場所で発生すると、何が起こるでしょうか？実は３つの順位の層があり、
+その層の中に、おそらくあなたは覚えておく必要のない、マイナーな順序規則があります。
+ともかく、それらを説明しましょう。
 
-もし同じ名前の変数が２箇所以上で定義されている場合、その変数の値を設定している
-場所を決定するための優先順位があります。小さい番号ほど、優先順位は高いです::
+playの実行中に設定される変数は、最も高い優先順位を持っています。これには、登録
+された変数や、リモートホストに関して発見された情報の断片であるfactを含みます。
 
-1. ansible-playbookコマンドラインで、--extra-vars (-e) を使って指定された任意の
-   変数
+優先度が下がるのが、playbookの中で定義された変数です。'vars_files'として
+playbookで定義されたものがその次で、ansible-playbook に --extra-vars (-e) を通じて
+渡された変数、'vars'セクションで定義された変数が続きます。これらはすべて、基本的に
+同じもの -- play の中ですべてのホストにすることについて定数を定義するのに適した
+場所であると解釈されるべきです。
 
-2. playbook内で 'vars_files' に記述されているYAMLファイルから読み込まれた変数
+最後に、インベントリ変数が最も低い優先順位を持っています。ホストに関する変数は、
+グループに関する変数を上書きします。もし変数が複数のグループで定義され、その一つが
+ほかのグループの子グループである場合、子グループの変数は親の変数設定を上書きします。
 
-3. 組み込みまたはカスタムのfact、もしくは'register'キーワードで割り当てられた変数
+このため'group_vars/all'ファイルは、別のグループやplaybookの中で上書きする
+デフォルト値を定義するのに最適な場所になります。例えば、あなたの組織でデフォルトの
+ntpサーバを group_vars/all の中で設定し、地域に基づくグループを基準に上書きして
+しまうこともあります。
+しかしplaybookのvarsセクションの中で'ntpserver: asdf.example.com' と記述すれば、
+その特定の値が間違いなく使用されようとしているものであることは、playbookを読んで
+知っています。忍び寄るインベントリ変数に騙されることはありません。
 
-4. タスクインクルード文にパラメータ化して渡された変数
-
-5. playbook内の'vars'で定義された変数
-
-6. インベントリのホスト変数
-
-7. 継承順に従ったインベントリのグループ変数。これはグループがサブグループを含む
-   場合、サブグループ内の変数はより高い優先順位を持つことを意味します。
-
-そのため、なにかデフォルトの値を設定して、他のどこかでそれを上書きしたいなら、
-デフォルトのような値を設定するのに最適な場所は、グループ変数です。
-'group_vars/all'ファイルは、他がすべてこれらの値よりも高い優先順位を持っている
-ので、サイト全体で有効なグローバル変数を置くのに最も適した場所になります。
+要するに、簡単に覚えるとすれば factはplaybookの定義より強く、playbookの定義は
+インベントリ変数より強い、です。
 
 
 チェックモード ("Dry Run") --check
@@ -1160,7 +1073,7 @@ ansible-playbook CLI に、ファイルに大して行われたテキストの�
              fish:
                - limpet
                - nemo
-               - ${other_fish_name}
+               - {{ other_fish_name }}
 
 上述のように、これらは内部変数として使うこともできます。
 

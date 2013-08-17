@@ -186,7 +186,7 @@ Ansibleは内部的に、引数を引数ファイルに保存します。その�
 
 このように返ってくるはずです::
 
-    {"changed": True, "time": "2012-03-14 12:23:00.000307"}
+    {"changed": true, "time": "2012-03-14 12:23:00.000307"}
 
 
 モジュールが提供する'fact'
@@ -395,13 +395,9 @@ bashでより簡単にモジュールを記述する場合や、JSONモジュー
 例
 ++++
 
-これが ``DOCUMENTAION`` 文字列として使用できる、正しい書式のYAMLドキュメントです:
+基本的なドキュメント文字列を出力する方法は、 ``./hacking/module_formatter.py -G`` を実行します。
 
-.. literalinclude:: ../../example/DOCUMENTAION.yaml
-
-これはAnsibleのGithubリポジトリの'examples'ディレクトリで利用でき、
-``./hacking/module_formatter.py -G`` で生成できます。あなたのモジュールにそれを
-コピーして、自分のドキュメントを書き始める出発点として使えます。
+あなたのモジュールにそれをコピーして、自分のドキュメントを書き始める出発点として使えます。
 
 このように、あなたのモジュールに含めます::
 
@@ -485,7 +481,7 @@ AnsibleModule共通コードを使用し、一般的にはプログラムの残�
 
    :doc:`modules`
        Learn about available modules
-   `Ansible Resources <https://github.com/ansible/ansible/tree/devel/contrib>`_
+   :doc:`contrib`
        User contributed playbooks, modules, and articles
    `Github modules directory <https://github.com/ansible/ansible/tree/devel/library>`_
        Browse source of core modules

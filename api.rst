@@ -121,22 +121,22 @@ EC2/Eucalyptus や OpenStack用のオプションを含みます。
 リストでなければいけません::
 
     {
-        'databases'   : {
-            'hosts'   : [ 'host1.example.com', 'host2.example.com' ],
-            'vars'    : {
-                'a'   : true
+        "databases"   : {
+            "hosts"   : [ "host1.example.com", "host2.example.com" ],
+            "vars"    : {
+                "a"   : true
             }
         },
-        'webservers'  : [ 'host2.example.com', 'host3.example.com' ],
-        'atlanta'     : {
-            'hosts'   : [ 'host1.example.com', 'host4.example.com', 'host5.example.com' ],
-            'vars'    : {
-                'b'   : false
+        "webservers"  : [ "host2.example.com", "host3.example.com" ],
+        "atlanta"     : {
+            "hosts"   : [ "host1.example.com", "host4.example.com", "host5.example.com" ],
+            "vars"    : {
+                "b"   : false
             },
-            'children': [ 'marietta', '5points' ],
+            "children": [ "marietta", "5points" ],
         },
-        'marietta'    : [ 'host6.example.com' ],
-        '5points'     : [ 'host7.example.com' ]
+        "marietta"    : [ "host6.example.com" ],
+        "5points"     : [ "host7.example.com" ]
     }
 
 .. versionadded: 1.0
@@ -150,9 +150,9 @@ EC2/Eucalyptus や OpenStack用のオプションを含みます。
 したくない場合は空のハッシュ/辞書を返すようにします::
 
     {
-        'favcolor'   : 'red',
-        'ntpserver'  : 'wolf.example.com',
-        'monitoring' : 'pack.example.com'
+        "favcolor"   : "red",
+        "ntpserver"  : "wolf.example.com",
+        "monitoring" : "pack.example.com"
     }
 
 
@@ -375,8 +375,9 @@ Ansibleが指定されたサーバとやり取りをする際、EC2インベン�
 ````````````````````````````````````
 
 EC2モジュールと同等の内容をここで詳しく説明はしませんが、pluginsディレクトリに
-は、OpenStack Nova のインベントリのソースもあります。使い方についてはモジュールの
-ソースのインラインコメントを参照してください。
+は、OpenStack Compute の外部インベントリのソースもあります。OpenStack の
+Grizzly リリース以降が必要です。
+使い方についてはモジュールのソースのインラインコメントを参照してください。
 
 
 Callbackプラグイン

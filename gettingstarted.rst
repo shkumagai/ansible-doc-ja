@@ -51,10 +51,10 @@ RHELやCentOS5を使っている場合、デフォルトはPython2.4ですが、
    モジュールは切り替え終わっていません。しかしいくつかのLinuxディストリ
    ビューション (GentooやArch) は、Python2.Xインタプリタがデフォルトで
    インストールされないことがあります。それらのシステムでは自分で
-   インストールして、インベントリの変数 'ansible_python_interpreter' に
-   自分のpython2.Xへのポインタの設定が必要です。Redhat Enterprise Linux、
-   CentOS、FedoraそしてUbuntu等のディストリビューションはPython2.Xインタプリタが
-   デフォルトでインストールされているので、これには該当しません。
+   インストールして、インベントリ (:doc:`patterns` を参照) の変数
+   'ansible_python_interpreter' に自分のpython2.Xへのポインタの設定が必要です。
+   Redhat Enterprise Linux、CentOS、FedoraそしてUbuntu等のディストリビューションは
+   Python2.Xインタプリタがデフォルトでインストールされているので、これには該当しません。
    これはまた、ほぼすべてのUnixシステムにも当てはまります。
    Python2.Xをインストールするためにこれらリモートシステムを起動する必要が
    ある場合は、"生"のモジュールを使ってリモートで起動できます。
@@ -142,6 +142,9 @@ RPMの場合
 
 最後のAnsibleリリースのRPMが、 `EPEL <http://fedraproject.org/wiki/EPEL>`_ 6と
 現在サポートされているFedoraディストリビューションで利用できます。
+openSUSE用のRPMは `openSUSE Software Portal <http://software.opensuse.org/package/ansible>`_
+(systemmanagement プロジェクト内) を通じて、現在サポートしているすべての
+openSUSEおよびSLESディストリビューション向けのものが見つかります。
 Ansible自体はPython2.4以降が含まれている以前のオペレーティング・システムを
 管理できます。
 
@@ -152,6 +155,16 @@ RHELやCentOSを使用していて、まだ設定していない場合は
 
     # install the epel-release RPM if needed on CentOS, RHEL, or Scientific Linux
     $ sudo yum install ansible
+
+openSUSEやSUSE Linux Enterpriseでは、
+`systemsmanagement リポジトリ <http://download.opensuse.org/repositories/systemsmanagement/>`_
+をあなたのディストリビューションに追加します:
+
+.. code-block:: bash
+
+    # replace $dist with the correct distribution found here: http://download.opensuse.org/repositories/systemsmanagement/
+    $ sudo zypper ar -f http://download.opensuse.org/repositories/systemsmanagement/$dist/systemsmanagement.repo
+    $ sudo zypper install ansible
 
 あなたが配布およびインストールするRPMをビルドするために ``make rpm`` コマンドを
 使うこともできます。 ``rpm-build`` 、 ``make`` および ``python2.x-devel`` が
@@ -208,6 +221,18 @@ UbuntuとDebian
 Ubuntu向けビルドは `このPPAのもの <https://launchpad.net/~rquillo/+archive/ansible>`_ が
 利用可能です。
 
+Ubuntu 13.04 では backports リポジトリにあります:
+
+.. code-block:: bash
+
+    $ sudo apt-get install ansible/raring-backports
+
+Debian の testing/unstable と Ubuntu 13.10 以降はこれで可能です
+
+.. code-block:: bash
+
+    $ sudo apt-get install ansible
+
 Debian/Ubuntu 向けパッケージのレシピも、チェックアウトしたソースからビルドできます:
 
 .. code-block:: bash
@@ -232,9 +257,9 @@ ArchのPKGBUILDは `AUR <https://aur.archlinux.org/packages.php?ID=58621>`_ に�
 
     $ sudo ln -sf /usr/bin/python2 /usr/bin/python
 
-python が python3 を指しているホストでのために 'ansible_python_interpreter'
-インベントリ変数の設定も必要です。そうすれば管理されるノードで正しくpythonを
-見つけることができます。
+python が python3 を指しているホストのために 'ansible_python_interpreter'
+インベントリ変数 (:doc:`patterns` を参照) の設定も必要です。
+そうすれば管理されるノードで正しくpythonを見つけることができます。
 
 
 タグ付きリリース
@@ -242,7 +267,7 @@ python が python3 を指しているホストでのために 'ansible_python_in
 
 リリースのtarボールは、ansible.cc のページにあるものが利用可能です。
 
-* `Ansible/downloads <https://ansible.cc/releases>`_
+* `Ansible/downloads <http://ansible.cc/releases>`_
 
 これらのリリースは、gitリポジトリでもリリースバージョンでタグ付けされています。
 

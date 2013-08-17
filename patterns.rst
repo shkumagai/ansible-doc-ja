@@ -9,7 +9,7 @@ Ansibleはあなたのインフラの複数のシステムに対して、同時�
 これは、デフォルトでは /etc/Ansible/hosts にあるAnsibleのインベントリ
 ファイルにリストされたシステムの一部を選択することによって行われます。
 
-.. contents:: `Table of contents`
+.. contents::
    :depth: 2
    :backlinks: top
 
@@ -125,7 +125,7 @@ Ansibleに伝える方法を知っておく必要があります。
 
 変数を使うこともできます::
 
-    webservers:!$excluded:&required
+    webservers:!{{excluded}}:&{{required}}
 
 各ホスト名、IP、およびグループはワイルドカードで参照することもできます::
 
@@ -135,6 +135,10 @@ Ansibleに伝える方法を知っておく必要があります。
 ワイルドカードパターンとグループを同時に混ぜても大丈夫です::
 
     one*.com:dbservers
+
+そして、パターンが '~' から始まると、正規表現として扱われます::
+
+    ~(web|db).*\.example\.com
 
 簡単ですよね。選択したホストに対して行うことについては :doc:`examples` と、
 それから :doc:`playbooks` を参照してください。
@@ -233,6 +237,10 @@ YAML形式になっています::
     database_server: storage.example.org
 
 これはオプショナルの機能なので、これらのファイルは存在しなくても大丈夫です。
+
+Tip: Ansible 1.2 以降では、group_vars/ と host_vars/ ディレクトリはplaybookディレクトリ
+またはinventoryディレクトリに置くことができます。もし双方のパスが存在する場合は、
+playbookディレクトリにある変数が２番めに読まれます。
 
 Tip: インベントリファイルや変数をgitリポジトリ (または他のバージョン管理) で
 保持するのが、インベントリやホスト変数の変更を追跡するためには優れた方法です。

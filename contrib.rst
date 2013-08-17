@@ -5,7 +5,8 @@ Ansibleのリソース
 
 ユーザがplaybook、module、および記事を寄稿しました。これは小さなキュレーション
 のリストですが、成長しています。誰でもこのドキュメントに追加ことを奨励しています。
-githubでdocsite/rst/contrib.rstにプル・リクエストを送るだけです！
+`Github 上で編集して <https://github.com/ansible/ansible/blob/devel/docsite/latest/rst/contrib.rst>`_
+ぷるリクエストを送るだけです！
 
 
 Ansible Module
@@ -23,8 +24,9 @@ Ansible moduleはAnsibleに新しいクライアントサイドのロジック�
 - `プロビジョニング関連追加モジュール <https://github.com/ansible-provisioning>`_ -
   jhoekx and dagwieers
 - `動的DNS更新 <https://github.com/jpmens/ansible-m-dnsupdate>`_ - jp\_mens
+- `apk-tools <http://git.alpinelinux.org/cgit/bpiotrowski/ansible-apk>`_ - Bartł omiej Piotrowski
 
-すべてのPythonモジュールはボイラープレートコードの量を劇的に削減するために、
+すべての (特にcoreに提供する) Pythonモジュールはボイラープレートコードの量を劇的に削減するために、
 共通の"AnsibleModule"クラスの利用が必須です。
 上記のすべてのモジュールがこの機能を利用できるわけではありません。詳細については
 公式のドキュメントを参照してください。
@@ -34,9 +36,20 @@ Ansible moduleはAnsibleに新しいクライアントサイドのロジック�
 ``````````````````
 
 `プレイブック <http://ansible.cc/docs/playbook.html>`_ はAnsibleの構成管理言語
-です。たいていのアプリケーションのためにスクラッチから自分で書くのが簡単ですが、
-他の人がやっていることを参考にするにも便利です。
+です。たいていのアプリケーションをスクラッチから自分で書くのは簡単 (*まさに*
+そのために言語をシンプルに保っています) ですが、他の人がやっていることを参考に
+したり、何ができるかを見るのにも便利です。
 
+Github の ansible-examples のリポジトリには、いくつかの完全なワークロードスタックを
+デプロイする Ansible コンテンツのベストプラクティス例が含まれています:
+
+- `Ansible-Examples <http://github.com/ansible/ansible-examples>`_
+
+そしてこちらはコミュニティで作られたプレイブックです。あなた自身のものを追加するには
+気軽にプルリクエストを出してください。
+
+-  `edX Online <https://github.com/edx/configuration>`_ - `edX Online <http://edx.org>`_
+-  `Fedora Infrastructure <http://infrastructure.fedoraproject.org/cgit/ansible.git/tree/>`_ - `Fedora <http://fedoraproject.org>`_
 - `Hadoop <https://github.com/jkleint/ansible-hadoop>`_ - jkleint
 - `LAMP <https://github.com/fourkitchens/server-playbooks>`_ -
   `Four Kitchens <http://fourkitchens.com>`_
@@ -45,8 +58,6 @@ Ansible moduleはAnsibleに新しいクライアントサイドのロジック�
 - `Nginx <http://www.capsunlock.net/2012/04/ansible-nginx-playbook.html>`_ - cocoy
 - `OpenStack <http://github.com/lorin/openstack-ansible>`_ - lorin
 - `Systems Configuration <https://github.com/cegeddin/ansible-contrib>`_ - cegeddin
-- `Fedora Infrastructure <http://infrastructure.fedoraproject.org/cgit/ansible.git/tree/>`_ -
-  `Fedora <http://fedoraproject.org>`_
 
 
 コールバックとプラグイン
@@ -58,6 +69,7 @@ Ansibleプロジェクトはリポジトリ全体で、新しいコネクショ�
 効果音を追加しようともしています。
 
 -  `Ansible-Plugins <https://github.com/ansible/ansible/tree/devel/plugins>`_
+-  `Various modules, plugins, and scripts <https://github.com/ginsys/ansible-plugins>`_ sergevanginderachter
 
 
 スクリプトとその他

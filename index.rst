@@ -1,15 +1,19 @@
 
 
-Ansible ドキュメント
-````````````````````
+Ansible ドキュメント 索引
+`````````````````````````
 
 .. イメージ省略
 
-このページは `Ansible <http://ansible.cc>`_ の使い方のドキュメントです。
-クラスの受講にも興味があるかも知れませんね。
+ようこそ、Ansibleのドキュメントへ。
+このドキュメントは現在のリリースバージョン(1.2)のAnsible、および幾つか開発中の
+機能についてカバーしています。
 
 .. イメージ省略
 
+
+以前のリリースバージョンについては、 `Ansible 1.1 Docs <http://ansibleworks.com/docs/released/1.1>`_
+の方を参照してください。
 
 playbook、構成管理、デプロイメント、そして組織化に飛び込む前に、Ansibleの
 インストール方法やいくつかの基本的な情報を学びましょう。 ``/usr/bin/ansible`` を
@@ -29,10 +33,10 @@ Ansibleコアで利用可能なモジュールなども分かります (あな�
 概要
 ````
 
-.. image:: http://ansible.cc/img/ansible_arch.png
+.. image:: http://www.ansibleworks.com/wp-content/uploads/2013/06/ANSIBLE_DIAGRAM.jpg
    :alt: ansible architecture diagram
-   :width: 566px
-   :height: 439px
+   :width: 788px
+   :height: 436px
 
 playbook
 ````````
@@ -54,6 +58,16 @@ playbookは可読性を持つようにデザインされていて、基本的な
    bestpractices
    YAMLSyntax
    Example Playbooks <https://github.com/ansible/ansible-examples>
+
+特定のソリューション
+````````````````````
+
+さらに幾つかのトピックに深く潜り込むチャンス:
+
+.. toctree::
+   :maxdepth: 1
+
+   amazon_web_services
 
 開発者向け情報
 ``````````````
@@ -81,5 +95,6 @@ Github か Twitter でサインインして投票したり、自分のモノを�
 .. toctree::
    :maxdepth: 1
 
+   faq
    contrib
    glossary

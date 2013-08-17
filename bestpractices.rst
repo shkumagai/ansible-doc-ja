@@ -7,6 +7,7 @@
 
 `ansible-examples リポジトリ <https://github.com/ansible/ansible-examples>`_
 ではこれらベストプラクティスを例示するplaybookの例を見つけられます。
+(注意: これらではまだ最新リリースのすべての機能を使用できません。)
 
 .. contents::
    :depth: 2
@@ -19,6 +20,8 @@
 示しています。Ansibleの使い方は、自分のニーズに適合しているべきですから、
 このアプローチを自分の使い方に合うように、自由に変更や整理してください。
 
+(間違い無くあなたがやりたいことの一つは"roles"を整理する機能の使い方でしょうが、
+それはメインのプレイブックの一部としてドキュメント化されています。)
 
 ディレクトリ構成
 ````````````````
@@ -39,6 +42,7 @@
     webservers.yml        # webserver層のplaybook
     dbservers.yml         # dbserver層のplaybook
 
+    roles/
     common/               # この階層は "role" を表す
         tasks/            #
             main.yml      #  <-- タスクファイルは正当であればより小さなファイルをインクルードできる
@@ -47,7 +51,8 @@
         templates/        #  <-- テンプレートで使用するファイル
             ntp.conf.j2   #  <------- テンプレートファイル名は .j2 で終わる
         files/            #
-            bar.txt       #  <-- コピーで使用するファイル
+            bar.txt       #  <-- copy リソースで使用するファイル
+            foo.sh        #  <-- script リソースで使用するスクリプト
 
     webtier/              # 上記の"common"と同様に、web層のroleを表す
     monitoring/           # ""
@@ -140,7 +145,7 @@ host_varsファイルには、システム内の特定のハードウェア用�
 
 
 トップレベルのplaybookは役割で分割する
-``````````````````````````````````````````
+``````````````````````````````````````
 
 site.ymlでは、インフラ全体を定義するplaybookが含まれています。 `非常に`
 短いことに注意してください。これは他のplaybookをインクルードしているだけ
@@ -159,12 +164,9 @@ site.ymlでは、インフラ全体を定義するplaybookが含まれていま�
     ---
     # file: webservers.yml
     - hosts: webservers
-      tasks:
-        - include: common/tasks/main.yml tags=common
-        - include: webtier/tasks/main.yml tags=webtier
-      handlers:
-        - include: common/handlers/main.yml
-        - include: webtier/handlers/main.yml
+      roles:
+        - common
+        - webtier
 
 
 roleに対するタスクとハンドラをまとめる
@@ -175,8 +177,11 @@ roleに対するタスクとハンドラをまとめる
 ここではcommon roleはNTPをセットアップしますが、必要ならそれ以外のことも
 可能です::
 
+以下は role のどのように機能するかを説明するための、タスクファイルの例です。
+ここではcommonロールはNTPを設定するだけですが、必要なら他にもいろいろできます::
+
     ---
-    # file: common/tasks/main.yml
+    # file: roles/common/tasks/main.yml
 
     - name: be sure ntp is installed
       yum: pkg=ntp state=installed
@@ -196,7 +201,7 @@ roleに対するタスクとハンドラをまとめる
 報告した場合にだけ発火し、各playの最後に実行されます::
 
     ---
-    # file: common/handlers/main.yml
+    # file: roles/common/handlers/main.yml
     - name: restart ntpd
       service: name=ntpd state=restarted
 
