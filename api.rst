@@ -273,33 +273,178 @@ Ansibleを実行するために構成されています。もしEC2上からAnsi
 この場合、 ``ec2.ini`` の ``destination_variable`` をインスタンスのプライベート
 DNS名になるように変更できます。インスタンスにアクセスする唯一の手段がプライベート
 IPアドレスを介してのみのVPCで、内部のプライベートサブネットでAnsibleを実行して
-いる場合、これは特に重要です。VPCインスタンスの場合、
+いる場合、これは特に重要です。VPCインスタンスの場合 ``ec2.ini`` の中の
+`vpc_destination_variable` が、あなたのユースケースに対して最も理に適った
+`boto.ec2.instance 変数 <http://docs.pythonboto.org/en/latest/ref/ec2.html#module-boto.ec2.instance>`_
+を使う手段を提供します。
 
+EC2外部インベントリはいくつかのグループからインスタンスへのマッピングを提供します:
+
+インスタンスID
+  インスタンスIDが一意であるため、これらは１つのグループです。
+  例
+  ``i-00112233``
+  ``i-a1b1c1d1``
+
+リージョン
+  AWSリージョンの中のすべてのインスタンスのグループ。
+  例
+  ``us-east-1``
+  ``us-west-2``
+
+アベイラビリティゾーン
+  アベイラビリティゾーン内のすべてのインスタンスのグループ。
+  例
+  ``us-east-1a``
+  ``us-east-1b``
+
+セキュリティグループ
+  インスタンスは１つまたは複数のセキュリティグループに属しています。グループは
+  各セキュリティグループ毎に、英数字以外のすべての文字とダッシュ (-) をアンダー
+  スコア (_) に置き換えて作られます。各グループには ``security_group_`` の
+  プレフィックスが付きます。
+  例
+  ``security_group_default``
+  ``security_group_webservers``
+  ``security_group_Pete_s_Fancy_Group``
+
+タグ
+  各インスタンスは、それに関連付けられたタグと呼ばれる、様々なキー/値のペアを
+  持てます。なんでも大丈夫ですが、最も一般的なタグのキーは'Name'です。それぞれの
+  キー/値のペアは ``tag_KEY_VALUE`` の書式で、特殊な文字はアンダースコアに変換
+  された、インスタンスに固有のグループです。
+  例
+  ``tag_Name_Web``
+  ``tag_Name_redis-master-001``
+  ``tag_aws_cloudformation_logical-id_WebServerGroup``
+
+Ansibleが指定されたサーバとやり取りをする際、EC2インベントリスクリプトは、再度
+``--host HOST`` オプション付きで呼び出されます。これはインスタンスIDを取得する
+ためにインデックスキャッシュのホストを検索し、その特定のインスタンスに関する
+情報を取得するためにAWSへのAPI呼び出しを行います。その後、あなたのplaybook変数
+として利用可能な、インスタンスに関する情報になります。各変数にはプレフィックス
+``ec2_`` が付きます。利用可能な変数の一部は、次のとおりです:
+
+- ec2_architecture
+- ec2_description
+- ec2_dns_name
+- ec2_id
+- ec2_image_id
+- ec2_instance_type
+- ec2_ip_address
+- ec2_kernel
+- ec2_key_name
+- ec2_launch_time
+- ec2_monitored
+- ec2_ownerId
+- ec2_placement
+- ec2_platform
+- ec2_previous_state
+- ec2_private_dns_name
+- ec2_private_ip_address
+- ec2_public_dns_name
+- ec2_ramdisk
+- ec2_region
+- ec2_root_device_name
+- ec2_root_device_type
+- ec2_security_group_ids
+- ec2_security_group_names
+- ec2_spot_instance_request_id
+- ec2_state
+- ec2_state_code
+- ec2_state_reason
+- ec2_status
+- ec2_subnet_id
+- ec2_tag_Name
+- ec2_tenancy
+- ec2_virtualization_type
+- ec2_vpc_id
+
+``ec2_security_group_ids`` と ``ec2_security_group_names`` は、どちらもカンマで
+区切られたすべてのセキュリティグループのリストです。各EC2タグは ``ec2_tag_KEY``
+形式の変数です。
+
+インスタンスで利用可能な変数の、完全なリストを表示するにはスクリプトそれ自身を
+実行します::
+
+    cd plugins/inventory
+    ./ec2.py --host ec2-12-12-12-12.compute-1.amazonaws.com
 
 
 例: OpenStack インベントリスクリプト
 ````````````````````````````````````
 
+EC2モジュールと同等の内容をここで詳しく説明はしませんが、pluginsディレクトリに
+は、OpenStack Nova のインベントリのソースもあります。使い方についてはモジュールの
+ソースのインラインコメントを参照してください。
+
+
 Callbackプラグイン
 ------------------
+
+Ansibleは、外部のイベントに対応するコードを通じて設定を行えます。これはログの強化
+や、外部ソフトウェアシステムのシグナル、さらに（本当に）効果音を鳴らせます。
+いくつかの例がpluginsディレクトリに含まれています。
+
 
 接続タイププラグイン
 --------------------
 
+デフォルトでは、Ansibleは 'paramiko' SSH、ネイティブSSH(単に'ssh'と呼ばれます)、
+および'local'接続タイプが同梱されています。リリース0.8では'fireball'と呼ばれる
+速度を高めた接続タイプを追加しました。これらはすべてplaybookや/usr/bin/ansible
+の中でリモートマシンとどうやり取りする方法を決めるために使えます。
+これらの接続タイプの基本は、'getting started'セクションの中でカバーしています。
+他のトランスポート（SNMP？メッセージバス？それとも伝書鳩？）をサポートするため
+にAnsibleの拡張をするのは、既存のモジュールのいずれかのフォーマットをコピーして
+接続プラグインのディレクトリにドロップするのと同じくらい簡単です。
+
+
 参照プラグイン
 --------------
+
+"with_fileglob"や"with_items"のような言語構造は、参照プラグインを使って実装されて
+います。他のプラグインタイプのように自分で書けます。
+
 
 Varsプラグイン
 --------------
 
+playbookは'vars'プラグインを介して、'host_vars'や'group_vars'の機能を構築します。
+これらはインベントリ、playbookおよびコマンドラインから何も渡されていないAnsibleの
+実行に追加の変数データを入れることができます。変数はインベントリからも返すことが
+できるので、ほとんどの場合はvars_pluginsを書いたり、理解する必要はないことに注意
+してください。
+
+
 フィルタープラグイン
 --------------------
+
+Jinja2テンプレートで（デフォルトで、to_yamlやto_json等のフィルタが用意されて
+いますが）もっとJinja2フィルタを利用した場合は、filterプラグインを書いて拡張
+できます。
+
 
 分散プラグイン
 --------------
 
 .. versionadded: 0.8
 
+プラグインはPythonのsite_packages (Ansibleに同梱されているもの) と、設定された
+pluginsディレクトリ -- デフォルトでは /usr/share/ansible/plugins -- のそれぞれ
+のプラグインタイプのサブディレクトリの両方から読み込まれます::
+
+    * action_plugins
+    * lookup_plugins
+    * callback_plugins
+    * connection_plugins
+    * filter_plugins
+    * vars_plugins
+
+このパスを変更するには、Ansibleの設定ファイルを編集します。
+
+また、プラグインはplaybookのトップディレクトリからの相対パスで、上に示したものと
+同じ名前のサブディレクトリに含めることができます。
 
 .. seealso::
 
