@@ -91,4 +91,17 @@ APIの詳細な例
 
 高度なプログラマは、コマンドラインツール ``ansible`` や ``ansible-playbook`` を
 実装するための Runner() API（と利用可能なすべてのオプション）を使うために、
-Ansible自身のソースを読みたいと思うかも知れません。
+Ansible自身のソースも読みたいと思うかも知れません。
+
+.. seealso::
+
+   :doc:`developing_inventory`
+       Developing dynamic inventory integrations
+   :doc:`developing_modules`
+       How to develop modules
+   :doc:`developing_plugins`
+       How to develop plugins
+   `Development Mailing List <http://groups.google.com/group/ansible-devel>`_
+       Mailing list for development topics
+   `irc.freenode.net <http://irc.freenode.net>`_
+       #ansible IRC chat channel
