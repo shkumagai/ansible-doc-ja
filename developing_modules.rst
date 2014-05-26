@@ -202,12 +202,82 @@ timeパラメータが設定されない場合、時刻はそのままにして�
 モジュールが提供する 'Facts'
 ````````````````````````````
 
+Ansibleに付属している'setup'モジュールはplaybookやtemplateで使用できる、
+システムに関する多くの変数を提供します。
+しかしシステムモジュールを変更しなくてもあなだ独自のfactsを追加できます。
+これを行うには、このようにモジュールが他の戻り値と一緒に `ansible_facts`
+キーを持つだけです::
+
+    {
+        "changed" : True,
+        "rc" : 5,
+        "ansible_facts" : {
+            "leptons" : 5000
+            "colors" : {
+                "red"   : "FF0000",
+                "white" : "FFFFFF"
+            }
+        }
+    }
+
+これら'facts'は、playbookの中でモジュールの後（前ではできません）に呼ばれる
+全てのステートメントで使用できます。
+我々は常にAnsibleと同様にコアfactsの選択の改善にもオープンにしていますが、
+'site_fact'というモジュールを作成してそれぞれのplaybookの先頭で呼び出すようにする、
+というのは良いアイデアかも知れません。
 
 .. _common_module_boilerplate:
 
 共通モジュールの鋳型
 ````````````````````
 
+既に言ったとおり、モジュールをPythonで書く場合には非常に強力なショートカットが
+使えます。
+モジュールはひとつのファイルとして転送されますが引数ファイルはもう必要になるので、
+コードの点で短いというだけでなく実行時間の点からも実際に高速です。
+
+ここで言及するよりも、学ぶための一番の方法はAnsibleに付属している
+`モジュールのソースコード <https://github.com/ansible/ansible/tree/devel/library>`_
+をいくつか読むことです。
+
+'group'と'user'モジュールは重要、かつこれがどのようなものかを紹介するのに合理的です。
+
+キーパーツのインクルードは常にモジュールファイルの末尾で行い::
+
+    from ansible.module_utils.basic import *
+    main()
+
+このようにしてモジュールのクラスをインスタンス化します::
+
+    module = AnsibleModule(
+        argument_spec = dict(
+            state     = dict(default='present', choices=['present', 'absent']),
+            name      = dict(required=True),
+            enabled   = dict(required=True, choices=BOOLEANS),
+            something = dict(aliases=['whatever'])
+        )
+    )
+
+AnsibleModuleは戻り値の扱い、引数の解析、そして入力チェックのための多くの共通コードを
+提供します。
+
+成功時の戻り値はこのようになります::
+
+    module.exit_json(changed=True, something_else=12345)
+
+そして失敗時も同様に単純です（'msg'はエラーを説明するために必要なパラメータです）::
+
+    module.fail_json(msg="Something fatal happened")
+
+モジュールクラスには他にもmodule.md5(path)のような便利な関数があります。
+実装の詳細については、チェックアウトしたソースのlib/ansible/module_common.py
+を参照してください。
+
+繰り返しますがこの方法で開発されたモジュールはgitのソースチェックアウトに含まれる
+hacking/test-moduleスクリプトを使ってよくテストされています。
+魔法を使っているので、これはAnsibleの外側でスクリプトが機能する唯一の方法です。
+
+Ansibleのコアコードにモジュールを提供（推奨）する場合は、AnsibleModuleクラスの使用は必須です。
 
 .. _developing_for_check_mode:
 
