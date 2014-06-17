@@ -283,14 +283,56 @@ Ansibleのコアコードにモジュールを提供（推奨）する場合は�
 
 チェックモード
 ``````````````
-
 .. versionadded:: 1.1
+
+モジュールは任意にチェックモードをサポートできます。ユーザがAnsibleをチェックモードで
+実行すると、モジュールは変更が起こるかどうかを予測するようにします。
+
+自分のモジュールでチェックモードをサポートするには、AnsibleModuleオブジェクトを
+インスタンス化するときに ``supports_check_mode=True`` を渡さなければいけません。
+チェックモードが有効な場合、AnsibleModule.check_mode属性はTrueに評価されます。
+例えば ::
+
+    module = AnsibleModule(
+        argument_spec = dict(...),
+        supports_check_mode=True
+    )
+
+    if module.check_mode:
+        # Check if any changes would be made by don't actually make those changes
+        module.exit_json(changed=check_if_system_state_would_be_changed())
+
+モジュール開発者は、ユーザがチェックモードを有効にした時には、システムの状態が変更されて
+いないことを保証する責任があることを覚えておいてください。
+
+自分のモジュールがチェックモードをサポートしない場合は、ユーザがAnsibleをチェックモードで
+実行した場合には、単純にスキップされます。
 
 
 .. _module_dev_pitfalls:
 
 よくある落とし穴
 ````````````````
+
+モジュールの中ではこれも行うべきではありません ::
+
+    print "some status message"
+
+なぜなら出力は有効なJSONであることが想定されているからです。
+Except that's not quite true, but we'll get to that later.
+
+システムが標準出力を標準エラーにマージしてJSONの解析を防ぐため、モジュールは標準エラーに
+何も出力すべきではありません。標準エラーをキャプチャして、それを標準出力上のJSON内で
+変数として返すのが適切ですし、実際にそれがcommandモジュールの実装方法です。
+
+モジュールが標準エラーを返すか、有効なJSONを返すことに失敗した場合、実際の出力はAnsibleの
+中で表示されますが、コマンドは成功しないでしょう。
+
+モジュールを開発する際は常にhacking/test-moduleを使用してください。そうすれば、このような
+種類の事象について警告してくれます。
+
+.. note:: 訳注
+   このセクションの訳はいまいちしっくり来ない。なので後で見直しする。
 
 
 .. _module_dev_conventions:
